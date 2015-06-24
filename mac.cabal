@@ -60,4 +60,4 @@ library
 
 Source-repository head
   Type:     git
-  Location: git://russo@bitbucket.org/russo/mac-lib.git
+  Location: http://russo@bitbucket.org/russo/mac-lib.git
