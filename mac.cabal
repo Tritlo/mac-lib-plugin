@@ -42,7 +42,7 @@ extra-source-files:
      Examples/MACWget.hs
 
 library
-  build-depends:       base >= 4.7, network >= 2.6, transformers
+  build-depends:       base >= 4.7 && < 5, network >= 2.6 && < 3, transformers
 
   exposed-modules:
        MAC.Lattice,
