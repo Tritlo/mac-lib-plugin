@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Unsafe #-}
 
 -- | It provides functions which map read and write effects into security checks.
