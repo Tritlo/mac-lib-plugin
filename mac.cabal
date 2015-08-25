@@ -2,7 +2,7 @@
 --  see http://haskell.org/cabal/users-guide/
 
 name:                mac
-version:             0.1.0.0
+version:             0.1.1.0
 -- synopsis:
 license:             BSD3
 license-file:        LICENSE
@@ -33,6 +33,7 @@ description:
 
 extra-source-files:
      GNUmakefile,
+     changelog.md
      Examples/Examples.hs,
      Examples/Alice0.hs, Examples/Bob0.hs,
      Examples/Alice1.hs, Examples/Bob1.hs,
