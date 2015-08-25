@@ -12,7 +12,7 @@ maintainer:          russo@chalmers.se
 category:            Security
 synopsis:            Static Mandatory Access Control in Haskell
 build-type:          Simple
-cabal-version:       >=1.8
+cabal-version:       >=1.10
 
 
 description:
@@ -43,6 +43,11 @@ extra-source-files:
 
 library
   build-depends:       base >= 4.7 && < 5, network >= 2.6 && < 3, transformers
+
+  default-extensions:  MultiParamTypeClasses
+  other-extensions:    Safe, Trustworthy
+
+  default-language: Haskell98
 
   exposed-modules:
        MAC.Lattice,
