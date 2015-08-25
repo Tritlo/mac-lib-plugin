@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
 
 -- | Provide primitives to communicate among family members. It provides an
@@ -29,9 +28,11 @@ import Control.Concurrent
 -}
 joinMAC :: (Less l l') => MAC l' a -> MAC l (Labeled l' a)
 joinMAC m = (ioTCB . runMAC)
-              (catchMAC (m >>= safe_label)
-                        (\(e :: SomeException) -> safe_label (throw e)))
+              (catchMAC (m >>= safe_label) hd)
               where safe_label = return . MkRes . MkId
+                    hd = safe_label . throw . proxy
+                    proxy :: SomeException -> SomeException
+                    proxy = id
 
 {-
   Note:
