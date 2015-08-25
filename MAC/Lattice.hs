@@ -1,5 +1,4 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE EmptyDataDecls #-}
 
 {-# LANGUAGE Safe #-}
 
@@ -7,16 +6,16 @@
 module MAC.Lattice
     (
       Less ()
-    , H
-    , L
+    , H ()
+    , L ()
     )
 where
 
 
 -- | Label for public data
-data L
+data L = MkL
 -- | Label for secrets
-data H
+data H = MkH
 
 -- Pablo's trick to avoid instances
 -- Define a super-class
