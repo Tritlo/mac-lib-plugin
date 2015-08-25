@@ -24,6 +24,6 @@ password = do
   putStr "Please, select your password:"
   pass <- getLine
   b <- Bob.common_pass pass
-  if b then putStrLn "Your password is too common!"
-            >> password
+  if b then do putStrLn "Your password is too common!"
+               password
   else return pass
