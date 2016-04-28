@@ -10,8 +10,6 @@ module MAC.Functor
    )
 where
 
-import Control.Applicative
-
 import MAC.Lattice
 import MAC.Core
 
