@@ -3,9 +3,8 @@ module MAC.Functor
    (
      -- Functor
        fmap
-     -- Applicative functor
-     , pure
-     , (<*>)
+     -- Applicative operator
+     , (<<*>>)
      -- Relabeling
      , relabel
    )
@@ -20,11 +19,9 @@ import MAC.Core
 instance Functor (Res l) where
     fmap f = MkRes . f . unRes
 
--- | Labeled resources as applicative functors
-instance Applicative (Res l) where
-    pure    = MkRes
-    (<*>) f = MkRes . unRes f . unRes
-
+-- Applicative operator (no pure)
+(<<*>>) :: Res l (a -> b) -> Res l a -> Res l b
+(<<*>>) f = MkRes . unRes f . unRes
 
 -- | It upgrades a labeled resource
 relabel :: Less l l' => Res l a -> Res l' a
