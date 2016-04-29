@@ -1,8 +1,9 @@
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE FlexibleInstances #-}
 module MAC.Functor
    (
      -- Functor
-       fmap
+       sfmap
      -- Applicative operator
      , (<<*>>)
      -- Relabeling
@@ -12,15 +13,16 @@ where
 
 import MAC.Lattice
 import MAC.Core
+import MAC.Labeled
 
 -- | Labeled resources as functors
-instance Functor (Res l) where
-    fmap f = MkRes . f . unRes
+sfmap :: (a -> b) -> Labeled l a -> Labeled l b
+sfmap = (<<*>>) . (MkRes . MkId)
 
 -- Applicative operator (no pure)
-(<<*>>) :: Res l (a -> b) -> Res l a -> Res l b
-(<<*>>) f = MkRes . unRes f . unRes
+(<<*>>)   :: Labeled l (a -> b) -> Labeled l a -> Labeled l b
+f <<*>> x = MkRes $ MkId $ (unId (unRes f)) (unId (unRes x))
 
 -- | It upgrades a labeled resource
-relabel :: Less l l' => Res l a -> Res l' a
+relabel :: Less l l' => Labeled l a -> Labeled l' a
 relabel = MkRes . unRes

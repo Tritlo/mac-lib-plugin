@@ -4,7 +4,7 @@
 module MAC.Labeled
     (
        Labeled ()
-     , Id (MkId)
+     , Id (MkId, unId)
      , label
      , unlabel
     )
@@ -16,7 +16,7 @@ import MAC.Core (MAC(), Res())
 import MAC.Effects
 
 -- | Type denoting values of type @a@
-data Id a = MkId { unId :: a }
+newtype Id a = MkId { unId :: a }
 
 -- | Labeled expressions
 type Labeled l a = Res l (Id a)
