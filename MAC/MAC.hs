@@ -9,11 +9,6 @@ module MAC.MAC
      -- Monad MAC
      , MAC ()
      , runMAC
-     -- Labeled values
-     , fmap
-     , pure
-     , (<*>)
-     , relabel
      -- Auxiliary proxies
      , fix
     )
@@ -21,7 +16,6 @@ module MAC.MAC
 where
 
 import MAC.Core
-import MAC.Functor
 
 -- | To help the type-system
 fix :: l -> MAC l ()
