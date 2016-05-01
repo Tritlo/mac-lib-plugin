@@ -1,3 +1,3 @@
-* Cabal file updated to work on version >= 1.10
-* Remove the need for ScopedTypeVariables and EmptyDataDecls extensions
-* Added Haskell98 as the language considered by default
+* New module FlexibleLb.hs
+  - Extended API for labeled values: functor structure (fmap), relabeling
+	operation (relabel), and applicative operator (<<*>>).
