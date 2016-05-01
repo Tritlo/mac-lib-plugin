@@ -1,6 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE FlexibleInstances #-}
-module MAC.Functor
+module MAC.FlexibleLb
    (
      -- Functor
        sfmap
