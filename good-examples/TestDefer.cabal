@@ -1,0 +1,11 @@
+name: TestDefer
+cabal-version: >= 1.24
+build-type: Simple
+version: 1.0.0
+
+executable test_defer
+  default-language: Haskell2010
+  build-depends: base, mac
+  main-is: TestDefer.hs
+  ghc-options: -Wall
+

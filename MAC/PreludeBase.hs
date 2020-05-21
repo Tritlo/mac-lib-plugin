@@ -96,6 +96,9 @@ class Show a where
 instance Prelude.Show a => Show a where
   show = unOp Prelude.show
 
+instance Prelude.Show a => Prelude.Show (Labeled L a) where
+  show (MkRes (MkId a)) = Prelude.show a
+
 class Read a where
   read :: UnOp l String a
 
