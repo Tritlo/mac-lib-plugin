@@ -1,15 +1,16 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE Trustworthy #-}
 
 -- | Labeled expressions.
 module MAC.Labeled
-    (
-       Labeled ()
-     , Id (MkId, unId)
-     , label
-     , unlabel
-    )
-
-where
+  ( Labeled ()
+  , Id (MkId, unId)
+  , label
+  , unlabel
+  , Secret
+  , Public
+  ) where
 
 import MAC.Lattice
 import MAC.Core (MAC(), Res())
@@ -28,3 +29,6 @@ label = create . return . MkId
 -- | Observing labeled expressions
 unlabel :: Less l' l => Labeled l' a -> MAC l a
 unlabel = readdown (return . unId)
+
+type Secret a = Labeled H a
+type Public a = Labeled L a

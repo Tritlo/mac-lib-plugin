@@ -19,6 +19,8 @@ import MAC.Labeled
 sfmap :: (a -> b) -> Labeled l a -> Labeled l b
 sfmap = (<<*>>) . (MkRes . MkId)
 
+(<<$>>) = sfmap
+
 -- Applicative operator (no pure)
 (<<*>>)   :: Labeled l (a -> b) -> Labeled l a -> Labeled l b
 f <<*>> x = MkRes $ MkId $ (unId (unRes f)) (unId (unRes x))
