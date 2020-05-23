@@ -78,7 +78,7 @@ fakeCoerce dflags ct@(CIrredCan (CtWanted predty _ _ _) True) = fakeEv <$> lie
                 x@"Char ~ Res L (Id Char)" -> Just charTy
                 x@"Char ~ Res H (Id Char)" -> Just charTy
                 _ -> Nothing
-       fakeEv ty = (evCoercion $ mkReflCo Nominal ty, ct)
+       fakeEv ty = (evCoercion $ mkReflCo Phantom ty, ct)
 
 fakeCoerce _ _ = Nothing
 
@@ -94,7 +94,7 @@ isIllegalFlow _ _ = False
 -- mkCoVarCo with the hole in the evidence.It's not actually
 -- used anywhere, as far as I can tell.
 fakeEvidence :: Ct -> (EvTerm, Ct)
-fakeEvidence ct = (evCoercion $ mkReflCo Nominal boolTy, ct)
+fakeEvidence ct = (evCoercion $ mkReflCo Nominal anyTy, ct)
 
 changeIrredTy :: Type -> Ct -> Ct
 changeIrredTy nt can@(CIrredCan w@CtWanted{} True) =
