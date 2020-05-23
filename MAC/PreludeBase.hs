@@ -97,7 +97,7 @@ class Show a where
 instance Prelude.Show a => Show a where
   show = unOp Prelude.show
 
-instance Prelude.Show a => Prelude.Show (Labeled L a) where
+instance (Prelude.Show a, Max2 l L ~ L ) => Prelude.Show (Labeled l a) where
   show (MkRes (MkId a)) = Prelude.show a
 
 class Read a where
@@ -466,7 +466,7 @@ unwords = unOp Prelude.unwords
 -- RebindableSyntax
 
 instance IsString a => IsString (Labeled l a) where
-  fromString = fromString
+  fromString = MkRes . MkId . fromString
 
 instance Prelude.Num a => Prelude.Num (Labeled l a) where
   fromInteger = MkRes . MkId . Prelude.fromInteger
