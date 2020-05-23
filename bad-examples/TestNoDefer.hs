@@ -38,4 +38,5 @@ test = do
   return (post user pwd msg)
 
 main :: Prelude.IO ()
-main = runMAC test Prelude.>>= Prelude.print
+main = do  runMAC test Prelude.>>= Prelude.print
+           Prelude.print ("This should be private!" :: Secret String)

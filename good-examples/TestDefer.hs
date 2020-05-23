@@ -39,4 +39,4 @@ test = do
 
 main :: Prelude.IO ()
 main = do runMAC test Prelude.>>= Prelude.print
-          Prelude.print ("Secret pw" :: Secret String)
+          Prelude.print ("This should be private!" :: Secret String)
