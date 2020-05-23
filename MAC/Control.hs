@@ -1,4 +1,5 @@
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 -- | Provide primitives to communicate among family members. It provides an
 --   API for sequential 'joinMAC' and concurrent ('forkMAC') setting

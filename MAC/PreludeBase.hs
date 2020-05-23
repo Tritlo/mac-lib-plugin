@@ -8,6 +8,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE InstanceSigs #-}
 module MAC.PreludeBase
   ( module MAC.PreludeBase
   , Bool, Int, Float, Double, Integer, Rational, String, Ordering
@@ -467,8 +468,17 @@ unwords = unOp Prelude.unwords
 instance IsString (Labeled l String) where
   fromString = constant
 
-fromInteger :: Prelude.Num a => Integer -> Labeled l a
-fromInteger = MkRes . MkId . Prelude.fromInteger
+instance Prelude.Num a => Prelude.Num (Labeled l a) where
+  fromInteger = MkRes . MkId . Prelude.fromInteger
+  (+) a b = a + b
+  (*) a b = a * b
+  (-) a b = a - b
+  negate = negate
+  abs = abs
+  signum = signum
+
+fromInteger :: Prelude.Num a => Integer -> a
+fromInteger = Prelude.fromInteger
 
 ifThenElse :: TernOp lmax lb lt le Bool a a a
 ifThenElse (MkRes (MkId Prelude.True))  t e = relabel t

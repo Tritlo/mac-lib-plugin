@@ -29,9 +29,8 @@ data H
 -- | Type class encoding security lattices
 class Less l l' where
 
-instance Less L L where
 instance Less L H where
-instance Less H H where
+instance Less l l where
 
 #ifndef USE_PLUGIN
 instance TypeError (Text "Found forbidden flow from H to L") => Less H L where
@@ -42,10 +41,10 @@ instance Less H L where
 type family Max2 x y where
   Max2 H _ = H
   Max2 _ H = H
-  Max2 _ _ = L
+  Max2 l l = l
 
 type family Max3 x y z where
   Max3 H _ _ = H
   Max3 _ H _ = H
   Max3 _ _ H = H
-  Max3 _ _ _ = L
+  Max3 l l l = l

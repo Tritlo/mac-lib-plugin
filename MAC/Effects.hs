@@ -1,4 +1,5 @@
 {-# LANGUAGE Unsafe #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 -- | It provides functions which map read and write effects into security checks.
 module MAC.Effects

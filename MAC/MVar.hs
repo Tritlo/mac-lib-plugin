@@ -1,4 +1,5 @@
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 -- | Synchronization primitives
 module MAC.MVar
