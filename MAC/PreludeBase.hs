@@ -465,8 +465,8 @@ unwords = unOp Prelude.unwords
 ----------------------------------------
 -- RebindableSyntax
 
-instance IsString (Labeled l String) where
-  fromString = constant
+instance IsString a => IsString (Labeled l a) where
+  fromString = fromString
 
 instance Prelude.Num a => Prelude.Num (Labeled l a) where
   fromInteger = MkRes . MkId . Prelude.fromInteger
