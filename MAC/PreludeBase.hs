@@ -11,11 +11,11 @@
 {-# LANGUAGE InstanceSigs #-}
 module MAC.PreludeBase
   ( module MAC.PreludeBase
-  , Bool, Int, Float, Double, Integer, Rational, String, Ordering
-  , fromString
+  , Bool(..), Int, Float, Char, Double, Integer, Rational, String, Ordering
+  , fromString, MAC(), runMAC
   ) where
 
-import Prelude (Bool, Int, Float, Double, Integer, Rational, String, Ordering)
+import Prelude (Bool, Int, Float, Char, Double, Integer, Rational, String, Ordering)
 import qualified Prelude
 
 import Data.String
@@ -477,8 +477,15 @@ instance Prelude.Num a => Prelude.Num (Labeled l a) where
   abs = abs
   signum = signum
 
+instance Prelude.Fractional a => Prelude.Fractional (Labeled l a) where
+  fromRational = MkRes . MkId . Prelude.fromRational
+  (/) a b = a / b
+
 fromInteger :: Prelude.Num a => Integer -> a
 fromInteger = Prelude.fromInteger
+
+fromRational :: Prelude.Fractional a => Rational -> a
+fromRational = Prelude.fromRational
 
 ifThenElse :: TernOp lmax lb lt le Bool a a a
 ifThenElse (MkRes (MkId Prelude.True))  t e = relabel t

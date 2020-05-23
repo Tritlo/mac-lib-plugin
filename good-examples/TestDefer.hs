@@ -12,9 +12,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE Safe #-}
 module Main where
 
-import MAC.Core
 import MAC.Labeled
 import MAC.Prelude
 import qualified Prelude
@@ -28,6 +28,7 @@ sanitize pwd msg = unwords (map hide_pwd (words msg))
     hidden_pwd = concat (replicate (length pwd) ("*" :: Public String))
     hide_pwd word = if word == pwd then hidden_pwd else word
 
+
 test :: MAC l (Public String)
 test = do
   let user = "AzureDiamond"           :: Public String
@@ -35,6 +36,13 @@ test = do
   let msg  = "my password is hunter2" :: Public String
   return (post user pwd msg)
 
+k :: Public Bool
+k = True
+
+f :: Bool -> Public Bool
+f = constant
+
 main :: Prelude.IO ()
 main = do runMAC test Prelude.>>= Prelude.print
           Prelude.print ("This should be private!" :: Secret String)
+          Prelude.print ('a' :: Public Char)
