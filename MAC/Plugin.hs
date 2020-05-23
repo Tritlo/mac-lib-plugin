@@ -6,7 +6,7 @@ import TcRnTypes
 import TcPluginM
 import Control.Monad (when)
 import Constraint
-import Data.Maybe (fromJust, isJust)
+import Data.Maybe (fromJust, isJust, mapMaybe)
 import Data.IORef
 import Data.List (nub)
 import PrelNames
@@ -37,10 +37,7 @@ flowPlugin opts = TcPlugin initialize solve stop
         -- Here we allow Bools to be coerced to Public or Secret, to allow e.g.
         -- True :: Public Bool, since there is no "fromBool" functionality for
         -- RebindableSyntax. Same for Chars
-        ; let boolCons = filter (isBaseConversion dflags) wanted
-        ; res <- if (null boolCons)
-                    then return []
-                    else return $ map fakeEvidence boolCons
+        ; let res = mapMaybe (fakeCoerce dflags) wanted
         -- Here we change "Could not match H with L" messages
         ; let hToL = filter (isIllegalFlow dflags) wanted
         ; if not $ null hToL
@@ -72,15 +69,18 @@ warn :: DynFlags -> SrcSpan -> String -> IO ()
 warn dflags loc msg =
     putLogMsg dflags NoReason SevWarning loc (defaultErrStyle dflags) (text msg)
 
-isBaseConversion :: DynFlags -> Ct -> Bool
-isBaseConversion dflags (CIrredCan (CtWanted predty _ _ _) True) =
-   case showSDoc dflags $ ppr predty of
-         x@"Bool ~ Res L (Id Bool)" -> True
-         x@"Bool ~ Res H (Id Bool)" -> True
-         x@"Char ~ Res L (Id Char)" -> True
-         x@"Char ~ Res H (Id Char)" -> True
-         _ -> False
-isBoolConversion _ _ = False
+fakeCoerce :: DynFlags -> Ct -> Maybe (EvTerm, Ct)
+fakeCoerce dflags ct@(CIrredCan (CtWanted predty _ _ _) True) = fakeEv <$> lie
+ where lie =
+        case showSDoc dflags $ ppr predty of
+                x@"Bool ~ Res L (Id Bool)" -> Just boolTy
+                x@"Bool ~ Res H (Id Bool)" -> Just boolTy
+                x@"Char ~ Res L (Id Char)" -> Just charTy
+                x@"Char ~ Res H (Id Char)" -> Just charTy
+                _ -> Nothing
+       fakeEv ty = (evCoercion $ mkReflCo Nominal ty, ct)
+
+fakeCoerce _ _ = Nothing
 
 isIllegalFlow :: DynFlags -> Ct -> Bool
 isIllegalFlow dflags (CIrredCan (CtWanted predty _ _ _) True) =

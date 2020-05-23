@@ -45,4 +45,4 @@ f = constant
 main :: Prelude.IO ()
 main = do runMAC test Prelude.>>= Prelude.print
           Prelude.print ("This should be private!" :: Secret String)
-          Prelude.print ('a' :: Public Char)
+          Prelude.print ('a' :: Secret Char)
