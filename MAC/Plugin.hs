@@ -28,16 +28,17 @@ getMsgType = do {
 flowPlugin :: [CommandLineOption] -> TcPlugin
 flowPlugin opts = TcPlugin initialize solve stop
   where
-     defer = case opts of
-               ["defer"] -> True
-               _ -> False
+     defer = "defer" `elem` opts
+     promote = "promote" `elem` opts
      initialize = tcPluginIO $ newIORef []
      solve warns _ _ wanted = do {
         ; dflags <- unsafeTcPluginTcM getDynFlags
+        ; tcPluginIO $ mapM_ (print . showSDoc dflags . ppr) wanted
         -- Here we allow Bools to be coerced to Public or Secret, to allow e.g.
         -- True :: Public Bool, since there is no "fromBool" functionality for
         -- RebindableSyntax. Same for Chars
-        ; let res = mapMaybe (fakeCoerce dflags) wanted
+        ; let res = if promote then mapMaybe (fakeCoerce dflags) wanted
+                               else []
         -- Here we change "Could not match H with L" messages
         ; let hToL = filter (isIllegalFlow dflags) wanted
         ; if not $ null hToL

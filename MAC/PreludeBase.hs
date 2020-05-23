@@ -273,6 +273,7 @@ instance (Prelude.Ord a, Prelude.Eq a) => Ord a where
   max     = binOp Prelude.max
   min     = binOp Prelude.min
 
+
 ----------------------------------------
 -- Enum / Bounded
 

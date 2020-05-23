@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
+{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer -fplugin-opt=MAC.Plugin:promote #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -36,13 +36,8 @@ test = do
   let msg  = "my password is hunter2" :: Public String
   return (post user pwd msg)
 
-k :: Public Bool
-k = True
-
-f :: Bool -> Public Bool
-f = constant
 
 main :: Prelude.IO ()
 main = do runMAC test Prelude.>>= Prelude.print
           Prelude.print ("This should be private!" :: Secret String)
-          Prelude.print ('a' :: Secret Char)
+          Prelude.print (True :: Public Bool)
