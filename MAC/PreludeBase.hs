@@ -464,14 +464,11 @@ unwords = unOp Prelude.unwords
 ----------------------------------------
 -- RebindableSyntax
 
--- fromInteger :: forall l a. Prelude.Num a => Integer -> Labeled l a
--- fromInteger n = MkRes @l (MkId (Prelude.fromInteger n))
-
 instance IsString (Labeled l String) where
   fromString = constant
 
-fromInteger :: Prelude.Num a => Integer -> a
-fromInteger = Prelude.fromInteger
+fromInteger :: Prelude.Num a => Integer -> Labeled l a
+fromInteger = MkRes . MkId . Prelude.fromInteger
 
 ifThenElse :: TernOp lmax lb lt le Bool a a a
 ifThenElse (MkRes (MkId Prelude.True))  t e = relabel t
