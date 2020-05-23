@@ -30,10 +30,12 @@ flowPlugin opts = TcPlugin initialize solve stop
   where
      defer = "defer" `elem` opts
      promote = "promote" `elem` opts
+     debug = "debug" `elem` opts
      initialize = tcPluginIO $ newIORef []
      solve warns _ _ wanted = do {
         ; dflags <- unsafeTcPluginTcM getDynFlags
-        ; tcPluginIO $ mapM_ (print . showSDoc dflags . ppr) wanted
+        ; let pprDebug a = when debug $ tcPluginIO $ print $ showSDoc dflags $ ppr a
+        ; mapM_ pprDebug wanted
         -- Here we allow Bools to be coerced to Public or Secret, to allow e.g.
         -- True :: Public Bool, since there is no "fromBool" functionality for
         -- RebindableSyntax. Same for Chars
@@ -63,7 +65,7 @@ flowPlugin opts = TcPlugin initialize solve stop
                 dflags <- unsafeTcPluginTcM getDynFlags
              ; tcPluginIO $ do { w <- readIORef warns
                                ; let addWarning l =
-                                      warn dflags l "Illegal flow from H to L!"
+                                      warn dflags l "Forbidden flow from H to L!"
                                ; when defer $ mapM_ addWarning (reverse $ nub w)
                                ; return () }}
 warn :: DynFlags -> SrcSpan -> String -> IO ()
