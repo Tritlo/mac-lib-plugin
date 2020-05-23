@@ -14,8 +14,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
-
-import GHC.TypeLits()
 import MAC.Core
 import MAC.Labeled
 import MAC.Prelude
