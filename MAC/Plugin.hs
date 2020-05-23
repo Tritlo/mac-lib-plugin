@@ -67,7 +67,7 @@ flowPlugin opts = TcPlugin initialize solve stop
                                ; let addWarning l =
                                       warn dflags l "Forbidden flow from H to L!"
                                ; when defer $ mapM_ addWarning (reverse $ nub w)
-                               ; return () }}
+                               ; return ()}}
 warn :: DynFlags -> SrcSpan -> String -> IO ()
 warn dflags loc msg =
     putLogMsg dflags NoReason SevWarning loc (defaultErrStyle dflags) (text msg)
@@ -75,6 +75,7 @@ warn dflags loc msg =
 fakeCoerce :: DynFlags -> Ct -> Maybe (EvTerm, Ct)
 fakeCoerce dflags ct@(CIrredCan (CtWanted predty _ _ _) True) = fakeEv <$> lie
  where lie =
+        -- TODO: Make these more robust.
         case showSDoc dflags $ ppr predty of
                 x@"Bool ~ Res L (Id Bool)" -> Just boolTy
                 x@"Bool ~ Res H (Id Bool)" -> Just boolTy
@@ -88,6 +89,7 @@ fakeCoerce _ _ = Nothing
 isIllegalFlow :: DynFlags -> Ct -> Bool
 isIllegalFlow dflags (CIrredCan (CtWanted predty _ _ _) True) =
    case showSDoc dflags $ ppr predty of
+        -- TODO: Make these more robust.
          x@"H ~ L" -> True
          x@"L ~ H" -> True
          _ -> False

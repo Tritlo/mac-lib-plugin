@@ -50,7 +50,6 @@ test = do
   let msg  = "my password is hunter2" :: Public String
   return (post user pwd msg)
 
-
 main :: Prelude.IO ()
 main = do runMAC test Prelude.>>= Prelude.print
           Prelude.print ("This should be private!" :: Secret String)
