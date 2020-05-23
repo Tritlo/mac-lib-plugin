@@ -72,7 +72,7 @@ library
   if flag(use_plugin)
     cpp-options: -DUSE_PLUGIN
   other-modules:
-      MAC.PreludeBase
+      MAC.PreludeBase,
       MAC.FlexibleLb
 
 Flag use_plugin
