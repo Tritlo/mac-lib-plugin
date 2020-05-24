@@ -43,8 +43,14 @@ type BinOp  x y m     a b c = LessMax2 m x y => Labeled x a -> Labeled y b -> La
 type TernOp x y z m a b c d = LessMax3 m x y z => Labeled x a -> Labeled y b -> Labeled z c -> Labeled m d
 
 
-constant :: a -> Labeled l a
-constant a = MkRes (MkId a)
+promote :: a -> Labeled l a
+promote a = MkRes (MkId a)
+
+-- Can be used to promote an unlabeled value to a labeled one, but it causes
+-- a parse error if not used withing a parenthisis, e.g. (True ^#)
+(^#) :: a -> Labeled l a
+(^#) = promote
+infixl 8 ^#
 
 unOp :: (a -> b) -> UnOp l a b
 unOp = sfmap
@@ -74,10 +80,10 @@ unTernOp f = f'
 -- Boolean operators
 
 true :: Labeled l Bool
-true = constant Prelude.True
+true = promote Prelude.True
 
 false :: Labeled l Bool
-false = constant Prelude.False
+false = promote Prelude.False
 
 (&&) :: BinOp x y m Bool Bool Bool
 (&&) = binOp (Prelude.&&)
@@ -154,7 +160,7 @@ class Prelude.Fractional a => Floating a  where
   atanh   :: UnOp l a a
 
 instance (Prelude.Floating a, Prelude.Fractional a) => Floating a  where
-  pi      = constant Prelude.pi
+  pi      = promote Prelude.pi
   exp     = unOp Prelude.exp
   log     = unOp Prelude.log
   sqrt    = unOp Prelude.sqrt
@@ -302,8 +308,8 @@ class Bounded a where
   maxBound :: Labeled l a
 
 instance Prelude.Bounded a => Bounded a where
-  minBound = constant Prelude.minBound
-  maxBound = constant Prelude.maxBound
+  minBound = promote Prelude.minBound
+  maxBound = promote Prelude.maxBound
 
 ----------------------------------------
 -- Semigroup / Monoid
@@ -320,7 +326,7 @@ class Prelude.Semigroup a => Monoid a where
   mconcat :: UnOp l [a] a
 
 instance (Prelude.Semigroup a, Prelude.Monoid a) => Monoid a where
-  mempty  = constant Prelude.mempty
+  mempty  = promote Prelude.mempty
   mappend = binOp Prelude.mappend
   mconcat = unOp Prelude.mconcat
 
