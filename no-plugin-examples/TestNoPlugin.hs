@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fplugin=MAC.Plugin #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
