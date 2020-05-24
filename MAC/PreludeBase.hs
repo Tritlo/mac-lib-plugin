@@ -469,7 +469,7 @@ unwords = unOp Prelude.unwords
 instance IsString a => IsString (Labeled l a) where
   fromString = MkRes . MkId . fromString
 
-instance Prelude.Num a => Prelude.Num (Labeled l a) where
+instance (Prelude.Num a, a ~ Labeled l a) => Prelude.Num (Labeled l a) where
   fromInteger = MkRes . MkId . Prelude.fromInteger
   (+) a b = a + b
   (*) a b = a * b
@@ -478,7 +478,7 @@ instance Prelude.Num a => Prelude.Num (Labeled l a) where
   abs = abs
   signum = signum
 
-instance Prelude.Fractional a => Prelude.Fractional (Labeled l a) where
+instance (Prelude.Fractional a, a ~ Labeled l a) => Prelude.Fractional (Labeled l a) where
   fromRational = MkRes . MkId . Prelude.fromRational
   (/) a b = a / b
 

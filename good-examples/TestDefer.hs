@@ -1,5 +1,4 @@
-{-# OPTIONS_GHC -fplugin MAC.Plugin
-                -fplugin-opt=MAC.Plugin:defer #-}
+{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -13,7 +12,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE Safe #-}
 module Main where
 
 import MAC.Labeled
@@ -36,7 +34,11 @@ test = do
   let msg  = "my password is hunter2" :: Public String
   return (post user pwd msg)
 
+promotedList :: Public [[Integer]]
+promotedList = [[0 :: Integer]]
+
 main :: Prelude.IO ()
 main = do runMAC test Prelude.>>= Prelude.print
           Prelude.print ("This should be private!" :: Secret String)
           Prelude.print (True :: Public Bool)
+          Prelude.print promotedList

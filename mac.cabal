@@ -46,7 +46,8 @@ library
   build-depends:
     base >= 4.7 && < 5,
     network >= 2.6 && < 3,
-    ghc >= 8.10
+    ghc >= 8.10,
+    template-haskell >= 2.6
 
   default-extensions:
     MultiParamTypeClasses
@@ -73,7 +74,8 @@ library
     cpp-options: -DNO_MAC_PLUGIN
   other-modules:
       MAC.PreludeBase,
-      MAC.FlexibleLb
+      MAC.FlexibleLb,
+      MAC.PluginTh
 
 Flag no_mac_plugin
   Description: With no_mac_plugin on, checking the security is deferred to the,

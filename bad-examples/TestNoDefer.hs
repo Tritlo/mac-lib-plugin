@@ -14,7 +14,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
-import MAC.Core
 import MAC.Labeled
 import MAC.Prelude
 import qualified Prelude
@@ -35,7 +34,11 @@ test = do
   let msg  = "my password is hunter2" :: Public String
   return (post user pwd msg)
 
+promotedList :: Public [[Integer]]
+promotedList = [[0 :: Integer]]
+
 main :: Prelude.IO ()
-main = do  runMAC test Prelude.>>= Prelude.print
-           Prelude.print ("This should be private!" :: Secret String)
-           Prelude.print (True :: Public Bool)
+main = do runMAC test Prelude.>>= Prelude.print
+          Prelude.print ("This should be private!" :: Secret String)
+          Prelude.print (True :: Public Bool)
+          Prelude.print promotedList
