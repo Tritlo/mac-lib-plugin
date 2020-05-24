@@ -8,7 +8,8 @@ import Control.Monad (when)
 import Constraint
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import Data.IORef
-import Data.List (nub)
+import Data.List (nub, sort)
+import Data.Function (on)
 import PrelNames
 import TcEvidence (EvTerm, evCoercion)
 import ErrUtils
@@ -30,14 +31,21 @@ getMsgType str = do {
 data Log = ForbiddenFlow SrcSpan
          | Promotion SrcSpan deriving (Eq, Show)
 
+logSrc :: Log -> SrcSpan
+logSrc (ForbiddenFlow l) = l
+logSrc (Promotion l) = l
+
+instance Ord Log where
+  compare = compare `on` logSrc
+
 addWarning :: DynFlags -> Log -> IO()
-addWarning dflags log = uncurry warn msg
+addWarning dflags log = warn msg
   where
-    warn loc msg =
-      putLogMsg dflags NoReason SevWarning loc (defaultErrStyle dflags) (text msg)
+    warn =
+      putLogMsg dflags NoReason SevWarning (logSrc log) (defaultErrStyle dflags)
     msg = case log of
-            ForbiddenFlow l -> (l, "forbidden flow from H to L!")
-            Promotion l -> (l, "unlabeled value used as a labeled value!")
+            ForbiddenFlow _ -> text "forbidden flow from H to L!"
+            Promotion _ -> text "unlabeled value used as a labeled value!"
 
 flowPlugin :: [CommandLineOption] -> TcPlugin
 flowPlugin opts = TcPlugin initialize solve stop
@@ -59,16 +67,17 @@ flowPlugin opts = TcPlugin initialize solve stop
         -- RebindableSyntax. Same for Chars
         ; let proms = filter (isJust . fakeProm dflags) wanted
         ; let promLocs = map (Promotion . RealSrcSpan . ctLocSpan . ctLoc) proms
-        -- Here we change "Could not match H with L" messages
         ; let hToL = filter (isIllegalFlow dflags) wanted
         ; do { let locs = map (ForbiddenFlow . RealSrcSpan . ctLocSpan . ctLoc ) hToL
-             ; let fakedFlowProofs = map fakeEvidence hToL
-             ; let fakedPromote = map (fromJust . fakeProm dflags) proms
              ; if defer
                then do {
                  -- If we're deferring, we warn, but pretend we solved them
                  ; tcPluginIO $ modifyIORef warns ((promLocs ++ locs) ++)
-                 ; return $ TcPluginOk (fakedFlowProofs ++ fakedPromote) []}
+                 ; let fakedFlowProofs = map fakeEvidence hToL
+                 ; let fakedPromote = map (fromJust . fakeProm dflags) proms
+                 ; let faked = fakedFlowProofs ++ fakedPromote
+                 ; pprDebug "Faked:" $ ppr faked
+                 ; return $ TcPluginOk faked []}
                else do {
                  ; flowMsgTy <- getMsgType "Forbidden flow from H to L"
                  ; promMsgTy <- getMsgType
@@ -78,14 +87,11 @@ flowPlugin opts = TcPlugin initialize solve stop
                  ; let changedFlow = map (changeIrredTy flowMsgTy) hToL
                  ; let changedPromote = map (changeIrredTy promMsgTy) proms
                  ; let changed = changedFlow ++ changedPromote
-                 ; let faked = fakedFlowProofs ++ fakedPromote
-                 ; pprDebug "New" $ ppr changedFlow
-                 ; pprDebug "Faked" $ ppr faked
-                 ; return $ TcPluginOk faked changed }}}
+                 ; pprDebug "Changed:" $ ppr changed
+                 ; return $ TcPluginContradiction changed }}}
      stop warns = do {
                 dflags <- unsafeTcPluginTcM getDynFlags
-             ; tcPluginIO $ do { w <- readIORef warns
-                               ; mapM_ (addWarning dflags) (reverse $ nub w) }}
+             ; tcPluginIO $ readIORef warns >>= mapM_ (addWarning dflags) . sort . nub }
 
 fakeProm :: DynFlags -> Ct -> Maybe (EvTerm, Ct)
 fakeProm dflags ct@(CIrredCan (CtWanted predty _ _ _) True) = fakeEv <$> lie
@@ -118,12 +124,10 @@ isIllegalFlow _ _ = False
 -- mkCoVarCo with the hole in the evidence.It's not actually
 -- used anywhere, as far as I can tell.
 fakeEvidence :: Ct -> (EvTerm, Ct)
-fakeEvidence ct = (evCoercion $ mkReflCo Nominal anyTy, ct)
+fakeEvidence ct = (evCoercion $ mkReflCo Phantom anyTy, ct)
 
 changeIrredTy :: Type -> Ct -> Ct
 changeIrredTy nt can@(CIrredCan w@CtWanted{} True) =
-   CIrredCan {cc_ev = w {ctev_pred = nt}, cc_insol = False}
-changeIrredTy nt can@CDictCan{cc_ev=w@CtWanted{}} =
-   CIrredCan {cc_ev = w {ctev_pred = nt}, cc_insol = False }
+   CIrredCan {cc_ev = w {ctev_pred = nt}, cc_insol = True}
 changeIrredTy _ ct = ct
 
