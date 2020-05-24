@@ -58,7 +58,7 @@ flowPlugin opts = TcPlugin initialize solve stop
                  ; return $ TcPluginOk final []}
                else do {
                  ; flowMsgTy <- getMsgType "Forbidden flow from H to L"
-                 ; promMsgTy <- getMsgType "Unlabeled value used as a labeled value. Perhaps you meant to use 'promote' or '^#'?"
+                 ; promMsgTy <- getMsgType "Unlabeled value used as a labeled value. Perhaps you meant to use 'promote'?"
                  -- If we're changing the messge, we pretend we solved
                  -- the old one and return a new one (otherwise we get
                  -- duplicates if use_plugin is not supplied)

@@ -46,12 +46,6 @@ type TernOp x y z m a b c d = LessMax3 m x y z => Labeled x a -> Labeled y b -> 
 promote :: a -> Labeled l a
 promote a = MkRes (MkId a)
 
--- Can be used to promote an unlabeled value to a labeled one, but it causes
--- a parse error if not used withing a parenthisis, e.g. (True ^#)
-(^#) :: a -> Labeled l a
-(^#) = promote
-infixl 8 ^#
-
 unOp :: (a -> b) -> UnOp l a b
 unOp = sfmap
 

@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fplugin MAC.Plugin
+                -fplugin-opt=MAC.Plugin:defer
                 -fplugin-opt=MAC.Plugin:debug #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -37,9 +38,9 @@ test = do
   return (post user pwd msg)
 
 k :: Public Bool
-k = promote True
+k = True
 
 main :: Prelude.IO ()
 main = do runMAC test Prelude.>>= Prelude.print
           Prelude.print ("This should be private!" :: Secret String)
-          Prelude.print ((True ^#) :: Public Bool)
+          Prelude.print (True :: Public Bool)
