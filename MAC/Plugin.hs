@@ -14,7 +14,8 @@ import TcEvidence (EvTerm, evCoercion)
 import ErrUtils
 
 plugin :: Plugin
-plugin = defaultPlugin { tcPlugin = Just . flowPlugin, pluginRecompile = purePlugin }
+plugin = defaultPlugin { tcPlugin = Just . flowPlugin,
+                         pluginRecompile = purePlugin }
 
 getMsgType :: String -> TcPluginM Type
 getMsgType str = do {
@@ -28,6 +29,15 @@ getMsgType str = do {
 
 data Log = ForbiddenFlow SrcSpan
          | Promotion SrcSpan deriving (Eq, Show)
+
+addWarning :: DynFlags -> Log -> IO()
+addWarning dflags log = uncurry warn msg
+  where
+    warn loc msg =
+      putLogMsg dflags NoReason SevWarning loc (defaultErrStyle dflags) (text msg)
+    msg = case log of
+            ForbiddenFlow l -> (l, "forbidden flow from H to L!")
+            Promotion l -> (l, "unlabeled value used as a labeled value!")
 
 flowPlugin :: [CommandLineOption] -> TcPlugin
 flowPlugin opts = TcPlugin initialize solve stop
@@ -51,17 +61,15 @@ flowPlugin opts = TcPlugin initialize solve stop
              ; let fakedPromote = map (fromJust . fakeProm dflags) proms
              ; if defer
                then do {
-                 ; tcPluginIO $ modifyIORef warns (locs ++)
-                 ; tcPluginIO $ modifyIORef warns (promLocs ++)
-                 -- If we're deferring, we pretend we solved them
-                 ; let final = fakedFlowProofs ++ fakedPromote
-                 ; return $ TcPluginOk final []}
+                 -- If we're deferring, we warn, but pretend we solved them
+                 ; tcPluginIO $ modifyIORef warns ((promLocs ++ locs) ++)
+                 ; return $ TcPluginOk (fakedFlowProofs ++ fakedPromote) []}
                else do {
                  ; flowMsgTy <- getMsgType "Forbidden flow from H to L"
-                 ; promMsgTy <- getMsgType "Unlabeled value used as a labeled value. Perhaps you meant to use 'promote'?"
-                 -- If we're changing the messge, we pretend we solved
-                 -- the old one and return a new one (otherwise we get
-                 -- duplicates if use_plugin is not supplied)
+                 ; promMsgTy <- getMsgType
+                     "Unlabeled value used as a labeled value. Perhaps you meant to use 'promote'?"
+                 -- If we're changing the messge, we pretend we solved the old
+                 -- one and return a new one with an improved error message.
                  ; let changedFlow = map (changeIrredTy flowMsgTy) hToL
                  ; let changedPromote = map (changeIrredTy promMsgTy) proms
                  ; let changed = changedFlow ++ changedPromote
@@ -70,14 +78,7 @@ flowPlugin opts = TcPlugin initialize solve stop
      stop warns = do {
                 dflags <- unsafeTcPluginTcM getDynFlags
              ; tcPluginIO $ do { w <- readIORef warns
-                               ; let addWarning entry =
-                                        case entry of
-                                            ForbiddenFlow l -> warn dflags l "forbidden flow from H to L!"
-                                            Promotion l -> warn dflags l "unlabeled value used as a labeled value!"
-                               ; mapM_ addWarning (reverse $ nub w) }}
-warn :: DynFlags -> SrcSpan -> String -> IO ()
-warn dflags loc msg =
-    putLogMsg dflags NoReason SevWarning loc (defaultErrStyle dflags) (text msg)
+                               ; mapM_ (addWarning dflags) (reverse $ nub w) }}
 
 fakeProm :: DynFlags -> Ct -> Maybe (EvTerm, Ct)
 fakeProm dflags ct@(CIrredCan (CtWanted predty _ _ _) True) = fakeEv <$> lie
