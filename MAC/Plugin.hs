@@ -45,10 +45,15 @@ flowPlugin opts = TcPlugin initialize solve stop
      defer = "defer" `elem` opts
      debug = "debug" `elem` opts
      initialize = tcPluginIO $ newIORef []
-     solve warns _ _ wanted = do {
+     solve warns given derived wanted = do {
         ; dflags <- unsafeTcPluginTcM getDynFlags
-        ; let pprDebug a = when debug $ tcPluginIO $ print $ showSDoc dflags $ ppr a
-        ; mapM_ pprDebug wanted
+        ; let pprDebug str a =
+                when debug $
+                  tcPluginIO $ putStrLn (str ++ " " ++ showSDoc dflags (ppr a))
+        ; pprDebug "Solving" empty
+        ; mapM_ (pprDebug "Given:") given
+        ; mapM_ (pprDebug "Derived:") derived
+        ; mapM_ (pprDebug "Wanted:") wanted
         -- Here we allow Bools to be coerced to Public or Secret, to allow e.g.
         -- True :: Public Bool, since there is no "fromBool" functionality for
         -- RebindableSyntax. Same for Chars
@@ -74,6 +79,8 @@ flowPlugin opts = TcPlugin initialize solve stop
                  ; let changedPromote = map (changeIrredTy promMsgTy) proms
                  ; let changed = changedFlow ++ changedPromote
                  ; let faked = fakedFlowProofs ++ fakedPromote
+                 ; pprDebug "New" $ ppr changedFlow
+                 ; pprDebug "Faked" $ ppr faked
                  ; return $ TcPluginOk faked changed }}}
      stop warns = do {
                 dflags <- unsafeTcPluginTcM getDynFlags
@@ -94,12 +101,16 @@ fakeProm dflags ct@(CIrredCan (CtWanted predty _ _ _) True) = fakeEv <$> lie
 
 fakeProm _ _ = Nothing
 
+-- TODO: Make these more robust.
 isIllegalFlow :: DynFlags -> Ct -> Bool
 isIllegalFlow dflags (CIrredCan (CtWanted predty _ _ _) True) =
    case showSDoc dflags $ ppr predty of
-        -- TODO: Make these more robust.
          x@"H ~ L" -> True
          x@"L ~ H" -> True
+         _ -> False
+isIllegalFlow dflags (CDictCan (CtWanted predty _ _ _) _ _ _) =
+   case showSDoc dflags $ ppr predty of
+         x@"Less H L" -> True
          _ -> False
 isIllegalFlow _ _ = False
 
@@ -111,6 +122,8 @@ fakeEvidence ct = (evCoercion $ mkReflCo Nominal anyTy, ct)
 
 changeIrredTy :: Type -> Ct -> Ct
 changeIrredTy nt can@(CIrredCan w@CtWanted{} True) =
-   can {cc_ev = w {ctev_pred = nt}, cc_insol = False}
+   CIrredCan {cc_ev = w {ctev_pred = nt}, cc_insol = False}
+changeIrredTy nt can@CDictCan{cc_ev=w@CtWanted{}} =
+   CIrredCan {cc_ev = w {ctev_pred = nt}, cc_insol = False }
 changeIrredTy _ ct = ct
 

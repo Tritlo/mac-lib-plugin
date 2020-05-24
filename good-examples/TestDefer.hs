@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fplugin MAC.Plugin
-                -fplugin-opt=MAC.Plugin:defer
-                -fplugin-opt=MAC.Plugin:debug #-}
+                -fplugin-opt=MAC.Plugin:defer #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}

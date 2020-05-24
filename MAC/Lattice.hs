@@ -32,10 +32,8 @@ class Less l l' where
 instance Less L H where
 instance Less l l where
 
-#ifndef USE_PLUGIN
+#ifdef NO_MAC_PLUGIN
 instance TypeError (Text "Found forbidden flow from H to L") => Less H L where
-#else
-instance Less H L where
 #endif
 
 type family Max2 x y where

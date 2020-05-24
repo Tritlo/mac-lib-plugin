@@ -69,16 +69,15 @@ library
        MAC.Effects,
        MAC.Prelude,
        MAC.Plugin
-  if flag(use_plugin)
-    cpp-options: -DUSE_PLUGIN
+  if flag(no_mac_plugin)
+    cpp-options: -DNO_MAC_PLUGIN
   other-modules:
       MAC.PreludeBase,
       MAC.FlexibleLb
 
-Flag use_plugin
-  Description: With use_plugin on, checking the security is deferred to the 
-               plugin. Note! If the plugin is used without use_plugin, then
-               there will be duplicate error messages present in the output.
+Flag no_mac_plugin
+  Description: With no_mac_plugin on, checking the security is deferred to the,
+               the error messages will be worse.
   Default:     False
 
 Source-repository head
