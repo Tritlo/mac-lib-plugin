@@ -1,5 +1,6 @@
 -- Copyright (c) 2020 Matthias Pall Gissurarson
 {-# LANGUAGE  TemplateHaskell #-}
+{-# LANGUAGE DataKinds #-}
 module MAC.Plugin where
 
 import GhcPlugins hiding (TcPlugin)
@@ -19,9 +20,20 @@ import qualified MAC.Lattice
 import qualified MAC.Core
 import qualified MAC.Labeled
 
+import GHC.Hs 
+
+-- We have to add an import of GHC.TypeLits() to the module, otherwise we
+-- can get funny messages about interface files being missing
+addTypeLitImport :: HsParsedModule -> HsParsedModule
+addTypeLitImport pm@HsParsedModule{hpm_module=L l m@HsModule{hsmodImports = imps}}
+   = pm{hpm_module = L l m{hsmodImports = (imp:imps)}}
+  where imp = noLoc (simpleImportDecl (moduleName gHC_TYPELITS)) {ideclHiding = Just (False, noLoc [])}
+
+
 plugin :: Plugin
-plugin = defaultPlugin { tcPlugin = Just . flowPlugin,
-                         pluginRecompile = purePlugin }
+plugin = defaultPlugin { tcPlugin = Just . flowPlugin
+                       , parsedResultAction = \_ _ -> return . addTypeLitImport
+                       , pluginRecompile = purePlugin }
 
 getMsgType :: String -> TcPluginM Type
 getMsgType str = do {

@@ -70,8 +70,8 @@ box = MkRes . MkId
 -- f x y = do x' <- unbox x
 --            y' <- unbox y
 --            box (x' + y')
--- so we can do things like in the Maybe monad. Note: unbox is not the opposite
--- of box, since we want to make sure that the labels are preserved.
+-- Note: unbox is not the opposite of box, since we want to make sure that the
+-- labels are preserved.
 
 unbox :: Less l m => Labeled l a -> Res m a
 unbox = MkRes . unId . unRes
