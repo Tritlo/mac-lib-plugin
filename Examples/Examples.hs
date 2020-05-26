@@ -48,7 +48,7 @@ example1 = do ll <- low                -- This sets the current label here to L
 
      - using MAC.fix (no need for type signature)
 
-       fix (undefined :: H)
+       fix (Proxy :: Proxy H)
        h <- unlabel hh
 
      - giving the type signature and use unlabel.

@@ -58,12 +58,12 @@ write_and_fix io r = fix (labelOf r) >> writeup io r
     It lifts an operation which perform a read on data type @d a@, but
     it also performs a write on it as side-effect
 -}
-rw_read :: (Less l l', Less l' l) => (d a -> IO a) -> Res l' (d a) -> MAC l a
+rw_read :: Same l l' => (d a -> IO a) -> Res l' (d a) -> MAC l a
 rw_read io r = writeup (\_ -> return ()) r >> readdown io r
 
 {-|
     It lifts an operation which perform a write on data type @d a@, but
     it also performs a read on it as side-effect
 -}
-rw_write :: (Less l l', Less l' l) => (d a -> IO ()) -> Res l' (d a) -> MAC l ()
-rw_write io r = readdown (\_ -> return undefined) r >> writeup io r
+rw_write :: Same l l' => (d a -> IO ()) -> Res l' (d a) -> MAC l ()
+rw_write io r = readdown (\_ -> return (error "rw_write read evaluated")) r >> writeup io r

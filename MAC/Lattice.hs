@@ -31,6 +31,9 @@ class Less l l' where
 instance Less L H where
 instance Less l l where
 
+-- | l should match l', but lazily.
+type Same l l' = (Less l' l,  Less l l')
+
 type family Max2 x y where
   Max2 H _ = H
   Max2 _ H = H
