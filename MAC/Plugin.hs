@@ -58,7 +58,7 @@ flowMsg = "Forbidden flow from Secret (H) to Public (L)"
 promMsg :: String -> String -> String -> String
 promMsg ty1 ty2 l = "Unlabeled '"++ ty1 ++ "' used as a '"
                     ++ (if l == "L" then "Public" else "Secret")
-                    ++ " "++ ty2 ++"'. Perhaps you intended to use 'promote'?"
+                    ++ " "++ ty2 ++"'. Perhaps you intended to use 'box'?"
 
 logPromotion :: DynFlags -> Ct -> Log
 logPromotion dflags ct = Promotion loc ts

@@ -9,10 +9,13 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module MAC.PreludeBase
   ( module MAC.PreludeBase
   , Bool(..), Int, Float, Char, Double, Integer, Rational, String, Ordering
   , fromString, MAC(), runMAC
+  , module MAC.Lattice
   ) where
 
 import Prelude (Bool, Int, Float, Char, Double, Integer, Rational, String, Ordering)
@@ -27,13 +30,29 @@ import MAC.Control
 import MAC.FlexibleLb
 
 ----------------------------------------
--- Res and Id are functors
+-- Res and Id are monads
 
 instance Prelude.Functor (Res l) where
   fmap f (MkRes r) = MkRes (f r)
 
+instance Prelude.Applicative (Res m) where
+  pure = MkRes
+  f <*> a  = MkRes ((unRes f) (unRes a))
+
+instance Prelude.Monad (Res m) where
+    return = MkRes
+    a >>= f = f (unRes a)
+
 instance Prelude.Functor Id where
   fmap f (MkId r) = MkId (f r)
+
+instance Prelude.Applicative Id where
+  pure = MkId
+  f <*> a  = MkId ((unId f) (unId a))
+
+instance Prelude.Monad Id where
+    return = MkId
+    a >>= f = f (unId a)
 
 type LessMax2 m x y   = (m ~ Max2 x y, Less x m, Less y m)
 type LessMax3 m x y z = (m ~ Max3 x y z, Less x m, Less y m, Less z m)
@@ -42,9 +61,8 @@ type UnOp     l       a b   = Labeled l a -> Labeled l b
 type BinOp  x y m     a b c = LessMax2 m x y => Labeled x a -> Labeled y b -> Labeled m c
 type TernOp x y z m a b c d = LessMax3 m x y z => Labeled x a -> Labeled y b -> Labeled z c -> Labeled m d
 
-
-promote :: a -> Labeled l a
-promote a = MkRes (MkId a)
+box :: forall l a . a -> Labeled l a
+box = MkRes . MkId
 
 unOp :: (a -> b) -> UnOp l a b
 unOp = sfmap
@@ -74,10 +92,10 @@ unTernOp f = f'
 -- Boolean operators
 
 true :: Labeled l Bool
-true = promote Prelude.True
+true = box Prelude.True
 
 false :: Labeled l Bool
-false = promote Prelude.False
+false = box Prelude.False
 
 (&&) :: BinOp x y m Bool Bool Bool
 (&&) = binOp (Prelude.&&)
@@ -154,7 +172,7 @@ class Prelude.Fractional a => Floating a  where
   atanh   :: UnOp l a a
 
 instance (Prelude.Floating a, Prelude.Fractional a) => Floating a  where
-  pi      = promote Prelude.pi
+  pi      = box Prelude.pi
   exp     = unOp Prelude.exp
   log     = unOp Prelude.log
   sqrt    = unOp Prelude.sqrt
@@ -302,8 +320,8 @@ class Bounded a where
   maxBound :: Labeled l a
 
 instance Prelude.Bounded a => Bounded a where
-  minBound = promote Prelude.minBound
-  maxBound = promote Prelude.maxBound
+  minBound = box Prelude.minBound
+  maxBound = box Prelude.maxBound
 
 ----------------------------------------
 -- Semigroup / Monoid
@@ -320,7 +338,7 @@ class Prelude.Semigroup a => Monoid a where
   mconcat :: UnOp l [a] a
 
 instance (Prelude.Semigroup a, Prelude.Monoid a) => Monoid a where
-  mempty  = promote Prelude.mempty
+  mempty  = box Prelude.mempty
   mappend = binOp Prelude.mappend
   mconcat = unOp Prelude.mconcat
 
@@ -500,3 +518,15 @@ ifThenElse (MkRes (MkId Prelude.False)) t e = relabel e
 
 return :: Prelude.Monad m => a -> m a
 return = Prelude.return
+
+-- Make do notation usable with labels
+-- | The 'unbox' function allows us to write:
+-- f :: Public Int -> Secret Int -> Secret Int
+-- f x y = do x' <- unbox x
+--            y' <- unbox y
+--            box (x' + y')
+-- so we can do things like in the Maybe monad. Note: unbox is not the opposite
+-- of box, since we want to make sure that the labels are preserved.
+
+unbox :: Less l m => Labeled l a -> Res m a
+unbox = MkRes . unId . unRes

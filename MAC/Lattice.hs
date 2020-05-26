@@ -7,7 +7,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE Safe #-}
-{-# LANGUAGE CPP #-}
 
 -- | Encodes a security lattice.
 module MAC.Lattice
@@ -31,10 +30,6 @@ class Less l l' where
 
 instance Less L H where
 instance Less l l where
-
-#ifdef NO_MAC_PLUGIN
-instance TypeError (Text "Found forbidden flow from H to L") => Less H L where
-#endif
 
 type family Max2 x y where
   Max2 H _ = H

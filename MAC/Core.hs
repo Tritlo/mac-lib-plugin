@@ -12,11 +12,14 @@ module MAC.Core
      , runMAC
      -- IO actions into MAC
      , ioTCB
+     -- Allow users to "promise" that something is true.
+     , unsafeTrust
     )
 
 where
 
 import Control.Applicative
+import Data.Coerce
 
 -- | Labeling expressions of type @a@ with label @l@.
 newtype Res l a = MkRes {unRes :: a}
@@ -52,3 +55,7 @@ ioTCB = MkMAC
 -- | Execute secure computations.
 runMAC :: MAC l a -> IO a
 runMAC (MkMAC m) = m
+
+-- | we can already do this with the constructors anyway
+unsafeTrust :: Res l a -> Res l' a
+unsafeTrust = coerce

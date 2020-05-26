@@ -70,17 +70,10 @@ library
        MAC.Effects,
        MAC.Prelude,
        MAC.Plugin
-  if flag(no_mac_plugin)
-    cpp-options: -DNO_MAC_PLUGIN
   other-modules:
       MAC.PreludeBase,
       MAC.FlexibleLb,
       MAC.PluginTh
-
-Flag no_mac_plugin
-  Description: With no_mac_plugin on, checking the security is deferred to the,
-               the error messages will be worse.
-  Default:     False
 
 Source-repository head
   Type:     git
