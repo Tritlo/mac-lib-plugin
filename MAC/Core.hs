@@ -20,13 +20,14 @@ where
 
 import Control.Applicative
 import Data.Coerce
+import Data.Proxy
 
 -- | Labeling expressions of type @a@ with label @l@.
 newtype Res l a = MkRes {unRes :: a}
 
 -- | Label of resources
-labelOf :: Res l a -> l
-labelOf _res = undefined
+labelOf :: Res l a -> Proxy l
+labelOf _res = Proxy
 
 {-|
     This monad labels the results of the computation (of type @a@) with

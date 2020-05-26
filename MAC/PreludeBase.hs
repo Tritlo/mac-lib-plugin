@@ -61,8 +61,21 @@ type UnOp     l       a b   = Labeled l a -> Labeled l b
 type BinOp  x y m     a b c = LessMax2 m x y => Labeled x a -> Labeled y b -> Labeled m c
 type TernOp x y z m a b c d = LessMax3 m x y z => Labeled x a -> Labeled y b -> Labeled z c -> Labeled m d
 
+-- | Creation of pure labeled expressions
 box :: forall l a . a -> Labeled l a
 box = MkRes . MkId
+
+-- | The 'unbox' function allows us to write:
+-- f :: Public Int -> Secret Int -> Secret Int
+-- f x y = do x' <- unbox x
+--            y' <- unbox y
+--            box (x' + y')
+-- so we can do things like in the Maybe monad. Note: unbox is not the opposite
+-- of box, since we want to make sure that the labels are preserved.
+
+unbox :: Less l m => Labeled l a -> Res m a
+unbox = MkRes . unId . unRes
+
 
 unOp :: (a -> b) -> UnOp l a b
 unOp = sfmap
@@ -518,15 +531,3 @@ ifThenElse (MkRes (MkId Prelude.False)) t e = relabel e
 
 return :: Prelude.Monad m => a -> m a
 return = Prelude.return
-
--- Make do notation usable with labels
--- | The 'unbox' function allows us to write:
--- f :: Public Int -> Secret Int -> Secret Int
--- f x y = do x' <- unbox x
---            y' <- unbox y
---            box (x' + y')
--- so we can do things like in the Maybe monad. Note: unbox is not the opposite
--- of box, since we want to make sure that the labels are preserved.
-
-unbox :: Less l m => Labeled l a -> Res m a
-unbox = MkRes . unId . unRes

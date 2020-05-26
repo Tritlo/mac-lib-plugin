@@ -18,6 +18,7 @@ where
 
 import MAC.Lattice
 import MAC.Core
+import Data.Proxy
 
 {-|
     It lifts functions which create resources into secure functions which
@@ -42,7 +43,7 @@ readdown :: Less l' l => (d a -> IO a) -> Res l' (d a) -> MAC l a
 readdown io (MkRes da) = ioTCB $ io da
 
 -- | Proxy function to set the index of the family member 'MAC'
-fix :: l -> MAC l ()
+fix :: Proxy l -> MAC l ()
 fix _ = return ()
 
 -- | Auxiliary function. A combination of 'fix' and 'readdown'.

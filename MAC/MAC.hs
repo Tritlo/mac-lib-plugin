@@ -16,7 +16,4 @@ module MAC.MAC
 where
 
 import MAC.Core
-
--- | To help the type-system
-fix :: l -> MAC l ()
-fix _l = return ()
+import MAC.Effects (fix)
