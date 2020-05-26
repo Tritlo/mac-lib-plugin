@@ -2,7 +2,7 @@
 --  see http://haskell.org/cabal/users-guide/
 
 name:                mac
-version:             0.1.1.1
+version:             0.2.0.0
 -- synopsis:
 license:             BSD3
 license-file:        LICENSE
@@ -45,7 +45,7 @@ extra-source-files:
 library
   build-depends:
     base >= 4.7 && < 5,
-    network >= 2.6 && < 3,
+    process >= 1.6,
     ghc >= 8.10,
     template-haskell >= 2.6
 

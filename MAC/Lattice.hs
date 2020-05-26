@@ -6,6 +6,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE Safe #-}
 
 -- | Encodes a security lattice.
@@ -15,6 +16,7 @@ module MAC.Lattice
   , L ()
   , Max2
   , Max3
+  , Same
   ) where
 
 import GHC.TypeLits

@@ -30,5 +30,10 @@ label = create . return . MkId
 unlabel :: Less l' l => Labeled l' a -> MAC l a
 unlabel = readdown (return . unId)
 
+-- | Secret and Public values
 type Secret a = Labeled H a
 type Public a = Labeled L a
+
+-- | Trusted and Untrusted computations 
+type Trusted a = MAC H a
+type Untrusted a = MAC L a
