@@ -1,0 +1,38 @@
+name: BasicExamples
+cabal-version: >= 1.24
+build-type: Simple
+version: 1.0.0
+
+executable HelloWorld
+  default-language: Haskell2010
+  build-depends: base, mac
+  main-is: 01-HelloWorld.hs
+  ghc-options: -Wall
+
+
+executable Factorial
+  default-language: Haskell2010
+  build-depends: base, mac
+  main-is: 02-Factorial.hs
+  ghc-options: -Wall
+
+
+executable Fibonacci
+  default-language: Haskell2010
+  build-depends: base, mac
+  main-is: 03-Fibonacci.hs
+  ghc-options: -Wall
+
+
+executable CryptoHash
+  default-language: Haskell2010
+  build-depends: base, mac, cryptohash, bytestring,utf8-string
+  main-is: 04-CryptoHash.hs
+  ghc-options: -Wall
+
+
+executable Char
+  default-language: Haskell2010
+  build-depends: base, mac
+  main-is: 05-Char.hs
+  ghc-options: -Wall

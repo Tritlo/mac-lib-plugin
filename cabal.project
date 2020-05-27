@@ -2,3 +2,4 @@ packages: ./
           ./good-examples
           ./bad-examples
           ./no-plugin-examples
+          ./basic-examples-new-plugin
