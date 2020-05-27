@@ -1,3 +1,4 @@
+--{-# OPTIONS_GHC -fplugin MAC.Plugin #-}
 {-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
 {-# LANGUAGE RebindableSyntax #-}
 
@@ -59,7 +60,8 @@ secFib n = if n == secretZero then secretZero else
 {-
  When the plugin is disabled, this won't compile and
  will instead trigger the error "Couldn't match type H with L".
- When the plugin is enabled, it will just trigger
+ With plugin and no defer, the error msg is improved.
+ When the plugin is enabled with defer, it will just trigger
  the warning "Forbidden flow from Secret (H) to Public (L)" and run.
 -}
 printSecFib :: Secret Int -> Prelude.IO()
@@ -75,7 +77,8 @@ printSecFib = Prelude.print . secFib
 {-
  When the plugin is disabled, this won't compile and
  will instead trigger the error "Found Forbidden Flow from H to L".
- When the plugin is enabled, it will just trigger
+ With plugin and no defer, the error msg is improved.
+ When the plugin is enabled w/ defer, it will just trigger
  the warning "Forbidden flow from Secret (H) to Public (L)" and run.
  Note that the forbidden flow now happens because not because of the print
  but simply because we are attempting to convert from H to L in a pure function.

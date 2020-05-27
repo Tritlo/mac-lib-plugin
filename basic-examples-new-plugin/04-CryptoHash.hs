@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
+{-# OPTIONS_GHC -fplugin MAC.Plugin #-}
+--{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
 {-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -24,10 +25,11 @@ main :: Prelude.IO()
 {-
  Without plugin, this fails with the error "Couldn't match
  type H with L.
- With the plugin, triggers the warning "Forbidden Flow
+ With the plugin and no defer, the error message is "Forbidden Flow
  from Secret (H) to Public (L)"."
+ With the defer option enabled, we only get the warning and can run the code.
 -}
---main = Prelude.print (bsToString (hash ( bsFromString (box "Language-Based Security" :: Secret String))))
+main = Prelude.print (bsToString (hash ( bsFromString (box "Language-Based Security" :: Secret String))))
 
 
 {-
@@ -39,7 +41,7 @@ main :: Prelude.IO()
  This means that the compiler does not know whether the label given
  to the string is Secret (H) or Public (L).
 -}
-main = Prelude.print (bsToString (hash ( bsFromString (box "Language-Based Security"))))
+--main = Prelude.print (bsToString (hash ( bsFromString (box "Language-Based Security"))))
 
 
 

@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
+--{-# OPTIONS_GHC -fplugin MAC.Plugin #-}
+--{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
 {-# LANGUAGE RebindableSyntax #-}
 
 
@@ -21,7 +22,7 @@ secretProbe = box 'c'
 
 main:: Prelude.IO()
 
-main = Prelude.print (comparePublicInt (box 1))
+--main = Prelude.print (comparePublicInt (box 1))
 
 
 {-
@@ -30,7 +31,7 @@ main = Prelude.print (comparePublicInt (box 1))
  'comparePublic' function is clear. However, I thinks it is still
  recommended to apply a clear security label.
 -}
--- main = Prelude.print (comparePublic (box 'a'))
+main = Prelude.print (comparePublic (box 'a'))
 
 
 

@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
+{-# OPTIONS_GHC -fplugin MAC.Plugin #-}
+--{-# OPTIONS_GHC -fplugin MAC.Plugin -fplugin-opt=MAC.Plugin:defer #-}
 {-# LANGUAGE RebindableSyntax #-}
 
 module Main where
@@ -23,8 +24,9 @@ secretOne  = box 1
 secretFive :: Public Int
 {-
  With no plugin, this will fail w/ error "Couldn't match Int with MAC.Core.Res L (Id Int)".
- With plugin, will trigger the warning "Unlabeled Int used as a 'Public Int'. Perhaps
- you intended to use 'box'?"
+ With plugin enabled but no Defer flag, we get a better error: "Unlabeled Int used as a
+ Public Int. Perhaps you intended to use 'box'?"
+ With plugin and defer option, the above error will become a warning"
 -}
 secretFive  = 5
 
@@ -61,7 +63,9 @@ secFac n = if n == secretZero then secretOne else (n * secFac (n - secretOne))
 {-
  When the plugin is disabled, this won't compile and
  will instead trigger the error "Couldn't match type H with L".
- When the plugin is enabled, it will just trigger
+ When the plugin is enabled with no defer option, we get a "Forbidden Flow"
+ error message.
+ When the plugin is enabled and the defer option set, it will just trigger
  the warning "Forbidden flow from Secret (H) to Public (L)" and run.
 -}
 printSecFac :: Secret Int -> Prelude.IO()
@@ -77,7 +81,7 @@ printSecFac = Prelude.print . secFac
 {-
  When the plugin is disabled, this won't compile and
  will instead trigger the error "Couldn't match type L with H".
- When the plugin is enabled, it will just trigger
+ When the plugin is enabled with defer flag, it will just trigger
  the warning "Forbidden flow from Secret (H) to Public (L)" and run.
  Note that the forbidden flow now happens because of the
  types declared in the function signature that attempt to convert
