@@ -10,6 +10,8 @@ module MAC.Labeled
   , unlabel
   , Secret
   , Public
+  , Trusted
+  , Untrusted
   ) where
 
 import MAC.Lattice
