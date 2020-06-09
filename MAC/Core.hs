@@ -1,4 +1,6 @@
 {-# LANGUAGE Unsafe #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 
 -- | It defines main data structures for security, i.e., monad family 'MAC' and
 --   labeled resources 'Res'.
@@ -21,9 +23,10 @@ where
 import Control.Applicative
 import Data.Coerce
 import Data.Proxy
+import MAC.Lattice (Label(..))
 
 -- | Labeling expressions of type @a@ with label @l@.
-newtype Res l a = MkRes {unRes :: a}
+newtype Res (l :: Label) a = MkRes {unRes :: a}
 
 -- | Label of resources
 labelOf :: Res l a -> Proxy l
@@ -34,7 +37,7 @@ labelOf _res = Proxy
     label @l@.
 -}
 --newtype MAC l a = MkMAC {unMAC :: IO a}
-newtype MAC l a = MkMAC (IO a)
+newtype MAC (l :: Label) a = MkMAC (IO a)
 
 instance Functor (MAC l) where
     fmap f (MkMAC io) = MkMAC (fmap f io)

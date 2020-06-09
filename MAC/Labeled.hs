@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE Trustworthy #-}
 
@@ -22,7 +24,7 @@ import MAC.Effects
 newtype Id a = MkId { unId :: a }
 
 -- | Labeled expressions
-type Labeled l a = Res l (Id a)
+type Labeled (l :: Label) a = Res l (Id a)
 
 -- | Creation of labeled expressions
 label :: Less l l' => a -> MAC l (Labeled l' a)

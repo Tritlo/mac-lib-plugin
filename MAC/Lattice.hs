@@ -1,5 +1,4 @@
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -7,13 +6,13 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE Safe #-}
 
 -- | Encodes a security lattice.
 module MAC.Lattice
   ( Less ()
-  , H ()
-  , L ()
+  , Label (..)
   , Max2
   , Max3
   , Same
@@ -22,13 +21,10 @@ module MAC.Lattice
 import GHC.TypeLits
 import Data.Type.Bool
 
--- | Label for public data
-data L
--- | Label for secrets
-data H
+data Label = L | H deriving (Show)
 
 -- | Type class encoding security lattices
-class Less l l' where
+class Less (l :: Label) (l' :: Label) where
 
 instance Less L H where
 instance Less l l where
