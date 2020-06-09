@@ -1,21 +1,19 @@
 -- Copyright (c) 2020 Matthias Pall Gissurarson
-{-# LANGUAGE  TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
 module MAC.Plugin where
 
 import GhcPlugins hiding (TcPlugin)
 import TcRnTypes
 import TcPluginM
-import Control.Monad (when, guard)
+import Control.Monad (when, filterM)
 import Constraint
-import Data.Maybe (fromJust, isJust, mapMaybe)
+import Data.Maybe (catMaybes)
 import Data.IORef
 import Data.List (nub, sort)
 import Data.Function (on)
 import PrelNames
 import TcEvidence (EvTerm, evCoercion)
 import ErrUtils
-import MAC.PluginTh
 import qualified MAC.Lattice
 import qualified MAC.Core
 import qualified MAC.Labeled
@@ -26,7 +24,7 @@ import GHC.Hs
 -- can get funny messages about interface files being missing
 addTypeLitImport :: HsParsedModule -> HsParsedModule
 addTypeLitImport pm@HsParsedModule{hpm_module=L l m@HsModule{hsmodImports = imps}}
-   = pm{hpm_module = L l m{hsmodImports = (imp:imps)}}
+   = pm{hpm_module = L l m{hsmodImports = imp:imps}}
   where imp = noLoc (simpleImportDecl (moduleName gHC_TYPELITS)) {ideclHiding = Just (False, noLoc [])}
 
 
@@ -72,10 +70,10 @@ promMsg ty1 ty2 l = "Unlabeled '"++ ty1 ++ "' used as a '"
                     ++ (if l == "L" then "Public" else "Secret")
                     ++ " "++ ty2 ++"'. Perhaps you intended to use 'box'?"
 
-logPromotion :: DynFlags -> Ct -> Log
-logPromotion dflags ct = Promotion loc ts
+logPromotion :: DynFlags -> Ct -> TcPluginM Log
+logPromotion dflags ct = do Just ts <- getPromTys dflags ct
+                            return $ Promotion loc ts
     where loc = RealSrcSpan $ ctLocSpan $ ctLoc ct
-          Just ts = getPromTys dflags ct
 
 logForbiddenFlow :: Ct -> Log
 logForbiddenFlow ct = ForbiddenFlow loc
@@ -99,10 +97,10 @@ flowPlugin opts = TcPlugin initialize solve stop
         -- Here we allow Bools to be coerced to Public or Secret, to allow e.g.
         -- True :: Public Bool, since there is no "fromBool" functionality for
         -- RebindableSyntax. Same for Chars
-        ; let proms = filter (isJust . fakeProm) wanted
-        ; let pLogs = map (logPromotion dflags) proms
-        ; let hToL = filter isIllegalFlow wanted
-        ; let promsToCheck = mapMaybe checkProm proms
+        ; fakedPromote <- mapMaybeM fakeProm wanted
+        ; pLogs <- mapM (logPromotion dflags . snd) fakedPromote
+        ; hToL <- filterM isIllegalFlow wanted
+        ; promsToCheck <- mapMaybeM (checkProm . snd) fakedPromote
         ; do { let ffLogs = map logForbiddenFlow hToL
              ; if defer
                then do {
@@ -111,9 +109,6 @@ flowPlugin opts = TcPlugin initialize solve stop
                  -- allow unlabled values to be "promoted" to labeled values.
                  ; tcPluginIO $ modifyIORef warns ((pLogs ++ ffLogs) ++)
                  ; let fakedFlowProofs = map fakeEvidence hToL
-                 ; let fakedPromote = mapMaybe fakeProm proms
-                 ; let promsToCheck = mapMaybe checkProm proms
-
                  ; let faked = fakedFlowProofs ++ fakedPromote
                  ; mapM_ (pprDebug "Faked:" . ppr)  faked
                  ; mapM_ (pprDebug "To Check:" . ppr) promsToCheck
@@ -121,13 +116,13 @@ flowPlugin opts = TcPlugin initialize solve stop
                else do {
                  ; flowMsgTy <- getMsgType flowMsg
                  ; let promMsgTy ct = do {
-                        (Just ((ty1, ty2), l)) <- return $ getPromTys dflags ct
+                        (Just ((ty1, ty2), l)) <- getPromTys dflags ct
                        ; getMsgType $ promMsg ty1 ty2 l}
                  -- If we're changing the messge, we pretend we solved the old
                  -- one and return a new one with an improved error message.
                  ; let changedFlow = map (changeIrredTy flowMsgTy) hToL
-                 ; changedPromote <- mapM (\ct -> (`changeIrredTy` ct)
-                                                  <$> promMsgTy ct) proms
+                 ; changedPromote <- mapM (\(_, ct) -> (`changeIrredTy` ct)
+                                                       <$> promMsgTy ct) fakedPromote
                  ; let changed = changedFlow ++ changedPromote
                  ; pprDebug "Changed:" $ ppr changed
                  ; return $ TcPluginContradiction changed }}}
@@ -136,36 +131,51 @@ flowPlugin opts = TcPlugin initialize solve stop
            ; tcPluginIO $ readIORef warns >>=
                           mapM_ (addWarning dflags) . sort . nub }
 
-fakeProm :: Ct -> Maybe (EvTerm, Ct)
-fakeProm ct = fakeEv <$> lie
- where lie = do (prom, _) <- unwrapPromotion (ctPred ct)
-                (_, [_,_, ty1, _]) <- splitTyConApp_maybe prom
-                return ty1
+fakeProm :: Ct -> TcPluginM (Maybe (EvTerm, Ct))
+fakeProm ct = do l <- lie
+                 return $ fakeEv <$> l
+ where lie = do uwr <- unwrapPromotion (ctPred ct)
+                return $ do (prom, _) <- uwr
+                            (_, [_,_, ty1, _]) <- splitTyConApp_maybe prom
+                            return ty1
        fakeEv ty = (evCoercion $ mkReflCo Phantom ty, ct)
 
-checkProm :: Ct -> Maybe Ct
+checkProm :: Ct -> TcPluginM (Maybe Ct)
 checkProm ct@(CIrredCan w@(CtWanted predty _ _ _) True) =
-    case unwrapPromotion predty of
-        Just (unwrapped, _) -> Just (ct {cc_ev=w {ctev_pred = unwrapped},
-                                                  cc_insol=False})
-        _ -> Nothing
-checkProm _ = Nothing
+   do uwr <- unwrapPromotion predty 
+      case uwr of
+          Just (unwrapped, _) -> return $ Just (ct {cc_ev=w {ctev_pred = unwrapped},
+                                                             cc_insol=False})
+          _ -> return Nothing
+checkProm _ = return Nothing
 
-getPromTys :: DynFlags -> Ct -> Maybe ((String, String), String)
-getPromTys dflags ct = do { (p,l) <- unwrapPromotion (ctPred ct)
-                          ; (_, [_,_,ty1,ty2]) <- splitTyConApp_maybe p
-                          ; return ((showSDoc dflags $ ppr ty1,
-                                     showSDoc dflags $ ppr ty2),
-                                     showSDoc dflags $ ppr l)}
+getPromTys :: DynFlags -> Ct -> TcPluginM (Maybe ((String, String), String))
+getPromTys dflags ct = do  uwr <- unwrapPromotion (ctPred ct)
+                           return $ do (p,l) <- uwr
+                                       (_, [_,_,ty1,ty2]) <- splitTyConApp_maybe p
+                                       return ((showSDoc dflags $ ppr ty1,
+                                                showSDoc dflags $ ppr ty2),
+                                                showSDoc dflags $ ppr l)
 
-unwrapPromotion :: Type -> Maybe (Type, Type)
+unwrapPromotion :: Type -> TcPluginM (Maybe (Type, Type))
 unwrapPromotion t =
-    do (primEq, [k1, k2, ty1, ty2]) <- splitTyConApp_maybe t
-       guard (isPrimEqTyCon primEq && isTYPE k1 && isTYPE k2 && isMACRes ty2)
-       (_, [l, ty]) <- splitTyConApp_maybe ty2
-       guard (isLabel l && isMACId ty)
-       (_, [wrappedTy]) <- splitTyConApp_maybe ty
-       return (mkTyConApp primEq [k1, k2, ty1, wrappedTy], l)
+    do  case splitTyConApp_maybe t of
+          Just (primEq, [k1, k2, ty1, ty2]) |
+             isPrimEqTyCon primEq && isTYPE k1 && isTYPE k2 ->
+                do imr <- isMACRes ty2
+                   if not imr
+                   then return Nothing
+                   else case splitTyConApp_maybe ty2 of
+                          Just (_, [l, ty]) ->
+                             do g <- isLabel l `andM` isMACId ty
+                                if not g
+                                then return Nothing
+                                else case splitTyConApp_maybe ty of
+                                  Just (_, [wrappedTy]) ->
+                                     return $ Just (mkTyConApp primEq [k1, k2, ty1, wrappedTy], l)
+                                  _ -> return Nothing
+                          _ -> return Nothing
+          _ -> return Nothing
 
 -- Is mkReflCo Phantom correct here? We could also use
 -- mkCoVarCo with the hole in the evidence.It's not actually
@@ -181,35 +191,39 @@ changeIrredTy _ ct = ct
 -- In these functions, we rely on the fact that the MAC.Lattice.L that we're
 -- using refer to the same MAC.Lattice.L as the user is using. Otherwise, we
 -- might accidentally 'accept' a MAC.Lattice.L from another package.
-isSameName :: String -> TyCon -> Bool
-isSameName str con = str == nameStableString (getName con)
+isSameName :: String -> String -> TyCon -> TcPluginM Bool
+isSameName mod str con =
+   do env <- getTopEnv
+      modLookup <- findImportedModule (mkModuleName mod) (Just $ mkFastString "mac")
+      case modLookup of 
+        Found _ mod -> do name <- lookupOrig mod $ mkTcOcc str
+                          return $ name == getName con
+        _ -> return False
 
-isLabelL :: Type -> Bool
+isLabelL :: Type -> TcPluginM Bool
 isLabelL t =
   case splitTyConApp_maybe t of
-    Just (tyCon, []) -> isSameName name tyCon
-    _ -> False
-  where name = $(lookupStableName "MAC.Lattice.L")
+    Just (tyCon, []) -> isSameName "MAC.Lattice" "L" tyCon
+    _ -> return False
 
-isLabelH :: Type -> Bool
+isLabelH :: Type -> TcPluginM Bool
 isLabelH t =
  case splitTyConApp_maybe t of
-   Just (tyCon, []) -> isSameName name tyCon
-   _ -> False
-  where name = $(lookupStableName "MAC.Lattice.H")
+   Just (tyCon, []) -> isSameName "MAC.Lattice" "H" tyCon
+   _ -> return False
 
-isLabel :: Type -> Bool
-isLabel t = isLabelL t || isLabelH t
+isLabel :: Type -> TcPluginM Bool
+isLabel t = do a <- isLabelL t
+               if a then return True
+                    else isLabelH t
 
-isLessTy :: Type -> Bool
+isLessTy :: Type -> TcPluginM Bool
 isLessTy t =
   case splitTyConApp_maybe t of
-    Just (tyCon, [k1,k2,l,h]) ->
-      isSameName name tyCon &&
-      isLabel l && isLabel h &&
-      isTYPE k1 && isTYPE k2
-    _ -> False
-  where name = $(lookupStableName "MAC.Lattice.Less")
+    Just (tyCon, [k1,k2,l,h]) | isTYPE k1 && isTYPE k2 ->
+                                  isSameName "MAC.Lattice" "Less" tyCon `andM`
+                                  isLabel l `andM` isLabel h
+    _ -> return False
 
 isPrimEqTyCon :: TyCon -> Bool
 isPrimEqTyCon tyCon = getUnique tyCon == eqPrimTyConKey
@@ -219,27 +233,38 @@ isTYPE t = case splitTyConApp_maybe t of
             Just (t, args) ->  getUnique t == tYPETyConKey
             _ -> False
 
-isMACRes :: Type -> Bool
+isMACRes :: Type -> TcPluginM Bool
 isMACRes t =
   case splitTyConApp_maybe t of
-    Just (tyCon, [l,h]) -> isSameName name tyCon && isLabel l
-    _ -> False
-  where name = $(lookupStableName "MAC.Core.Res")
+    Just (tyCon, [l,h]) -> isSameName "MAC.Core" "Res" tyCon `andM` isLabel l
+    _ -> return False
 
-isMACId :: Type -> Bool
+isMACId :: Type -> TcPluginM Bool
 isMACId t =
   case splitTyConApp_maybe t of
-    Just (tyCon, [l]) -> isSameName name tyCon
-    _ -> False
-  where name = $(lookupStableName "MAC.Labeled.Id")
+    Just (tyCon, [l]) -> isSameName "MAC.Labeled" "Id" tyCon
+    _ -> return False
 
-isFlowEq :: Type -> Bool
+
+isFlowEq :: Type -> TcPluginM Bool
 isFlowEq t =
    case splitTyConApp_maybe t of
-    Just (tyCon, [k1,k2,l,h]) ->
-      getUnique tyCon == eqPrimTyConKey &&
-      isLabel l && isLabel h && isTYPE k1 && isTYPE k2
-    _ -> False
+    Just (tyCon, [k1,k2,l,h]) | getUnique tyCon == eqPrimTyConKey &&
+                                isTYPE k1 && isTYPE k2 ->
+                                isLabel l `andM` isLabel h
+    _ -> return False
 
-isIllegalFlow :: Ct -> Bool
-isIllegalFlow ct = isFlowEq (ctPred ct) || isLessTy (ctPred ct)
+isIllegalFlow :: Ct -> TcPluginM Bool
+isIllegalFlow ct = isFlowEq (ctPred ct) `orM` isLessTy (ctPred ct)
+
+-- utilities
+mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
+mapMaybeM f xs = catMaybes <$> mapM f xs
+
+orM :: Monad m => m Bool -> m Bool -> m Bool
+orM a b = do a' <- a
+             if a' then return a' else b
+
+andM :: Monad m => m Bool -> m Bool -> m Bool
+andM a b = do a' <- a
+              if not a' then return a' else b

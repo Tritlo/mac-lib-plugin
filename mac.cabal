@@ -72,8 +72,7 @@ library
        MAC.Plugin
   other-modules:
       MAC.PreludeBase,
-      MAC.FlexibleLb,
-      MAC.PluginTh
+      MAC.FlexibleLb
 
 Source-repository head
   Type:     git
