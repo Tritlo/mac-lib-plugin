@@ -37,8 +37,8 @@ addTypeLitImport pm@HsParsedModule{hpm_module=L l m@HsModule{hsmodImports = imps
 
 -- If we're deferring, we need MkRes and MkId to be in scope, so that the Coercible a (Res l (Id a))
 -- constraints generated during promotion are solveable.
-addResAndIdImport :: [CommandLineOption] -> HsParsedModule -> HsParsedModule
-addResAndIdImport opts pm@HsParsedModule{hpm_module=L l m@HsModule{hsmodImports = imps}}
+addDeferImports :: [CommandLineOption] -> HsParsedModule -> HsParsedModule
+addDeferImports opts pm@HsParsedModule{hpm_module=L l m@HsModule{hsmodImports = imps}}
  = if not defer then pm
    else pm{hpm_module = L l m{hsmodImports = resImp:idImp:imps}}
   where defer = "defer" `elem` opts
@@ -52,12 +52,13 @@ addResAndIdImport opts pm@HsParsedModule{hpm_module=L l m@HsModule{hsmodImports 
         -- We import only the constructors
         resImp = imp "MAC.Core" (mkDataOcc "MkRes")
         idImp = imp "MAC.Labeled" (mkDataOcc "MkId")
+        defImp = imp "MAC.KindDefaults" (mkTcOcc "Default")
         occToLie :: OccName -> LIEWrappedName RdrName
         occToLie = loc . IEName . loc . Unqual
 
 plugin :: Plugin
 plugin = defaultPlugin { tcPlugin = Just . flowPlugin
-                       , parsedResultAction = \opts _ -> return . addResAndIdImport opts . addTypeLitImport
+                       , parsedResultAction = \opts _ -> return . addDeferImports opts . addTypeLitImport
                        , pluginRecompile = purePlugin }
 
 getMsgType :: DynFlags -> PDoc -> TcPluginM Type
@@ -417,7 +418,7 @@ getDefaultTyCon =
             do name <- lookupOrig mod (mkTcOcc "Default")
                tcLookupTyCon name
          NoPackage uid ->
-            pprPanic ("NoPackage when looking for" ++ mod++"!") uid
+            pprPanic ("NoPackage when looking for" ++ mod++"!") $ ppr uid
          FoundMultiple m ->
             pprPanic ("Multiple modules found when looking for" ++ mod ++"!") (ppr m)
          NotFound {..} -> pprPanic (mod ++ "not found!") empty
