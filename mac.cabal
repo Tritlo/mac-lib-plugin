@@ -69,7 +69,8 @@ library
        MAC.Core,
        MAC.Effects,
        MAC.Prelude,
-       MAC.Plugin
+       MAC.Plugin,
+       MAC.KindDefaults
   other-modules:
       MAC.PreludeBase,
       MAC.FlexibleLb

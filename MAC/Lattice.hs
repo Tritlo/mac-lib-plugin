@@ -18,10 +18,12 @@ module MAC.Lattice
   , Same
   ) where
 
-import GHC.TypeLits
 import Data.Type.Bool
+import MAC.KindDefaults
 
 data Label = L | H deriving (Show)
+
+type instance Default Label = L
 
 -- | Type class encoding security lattices
 class Less (l :: Label) (l' :: Label) where
