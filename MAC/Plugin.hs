@@ -18,6 +18,8 @@ import ErrUtils
 import TysPrim (equalityTyCon)
 import Finder (findPluginModule)
 
+import Prelude hiding ((<>))
+
 import GHC.Hs 
 
 -- We have to add an import of GHC.TypeLits() to the module, otherwise we
@@ -55,18 +57,25 @@ plugin = defaultPlugin { tcPlugin = Just . flowPlugin
                        , parsedResultAction = \opts _ -> return . addResAndIdImport opts . addTypeLitImport
                        , pluginRecompile = purePlugin }
 
-getMsgType :: String -> TcPluginM Type
-getMsgType str = do {
+getMsgType :: DynFlags -> PDoc -> TcPluginM Type
+getMsgType dflags err = do {
      typeErrorCon <- tcLookupTyCon errorMessageTypeErrorFamName
    ; textCon <- promoteDataCon <$> tcLookupDataCon typeErrorTextDataConName
-   ; return $ mkTyConApp typeErrorCon [constraint, mkTyConApp textCon [msg]]}
- where msg :: Type
-       msg = mkStrLitTy $ fsLit str
-       constraint = mkTyConApp constraintKindTyCon []
-
+   ; appendCon <- promoteDataCon <$> tcLookupDataCon typeErrorAppendDataConName
+   ; vAppendCon <- promoteDataCon <$> tcLookupDataCon typeErrorVAppendDataConName
+   ; showTyCon <- promoteDataCon <$> tcLookupDataCon typeErrorShowTypeDataConName
+   ; let msg = renderPType textCon appendCon vAppendCon showTyCon err
+   ; return $ mkTyConApp typeErrorCon [constraint, msg] }
+ where constraint = mkTyConApp constraintKindTyCon []
+       renderPType tc ac vc sc err = render' err
+         where render' (Append a b) = mkTyConApp ac [render' a, render' b]
+               render' (VAppend a b) = mkTyConApp vc [render' a, render' b]
+               render' (Text s) =  mkTyConApp tc [mkStrLitTy $ fsLit s]
+               render' (ShowTy ty) = mkTyConApp sc [anyTy, ty]
+               render' (ShowDoc sd) = render' $ Text $ showSDoc dflags sd
 
 data Log = ForbiddenFlow SrcSpan
-         | Promotion SrcSpan ((String, String), String) deriving (Eq, Show)
+         | Promotion SrcSpan ((Type, Type), Type)
 
 logSrc :: Log -> SrcSpan
 logSrc (ForbiddenFlow l) = l
@@ -75,25 +84,74 @@ logSrc (Promotion l _) = l
 instance Ord Log where
   compare = compare `on` logSrc
 
+instance Eq Log where
+  Promotion l1 ((t1a,t1b),t1c) == Promotion l2 ((t2a,t2b),t2c) =
+     l1 == l2 && (t1a `eqType` t2a) && (t1b `eqType` t2b) &&   (t1c `eqType` t2c)
+  ForbiddenFlow l1 == ForbiddenFlow l2 = l1 == l2
+  _ == _ = False
+
 addWarning :: DynFlags -> Log -> IO()
 addWarning dflags log = warn msg
   where
     warn =
       putLogMsg dflags NoReason SevWarning (logSrc log) (defaultErrStyle dflags)
     msg = case log of
-            ForbiddenFlow _ -> text (flowMsg ++ "!")
-            Promotion _ ((ty1, ty2), l) -> text $ promMsg ty1 ty2 l
+            ForbiddenFlow _ -> renderPDoc flowMsg
+            Promotion _ ((ty1, ty2), l) -> renderPDoc $ promMsg ty1 ty2 l
 
-flowMsg :: String
-flowMsg = "Forbidden flow from Secret (H) to Public (L)"
 
-promMsg :: String -> String -> String -> String
-promMsg ty1 ty2 l = "Unlabeled '"++ ty1 ++ "' used as a '"
-                    ++ (if (l == "'L" || l == "L") then "Public" else "Secret")
-                    ++ " "++ ty2 ++"'. Perhaps you intended to use 'box'?"
+-- PDoc is a simple format that matches the UserTypeErrorMessage format, with an
+-- additional ShowDoc constructor for convenience. We render this to both a
+-- type error and an SDoc
+data PDoc = Append PDoc PDoc
+          | VAppend PDoc PDoc
+          | Text String
+          | ShowTy Type
+          | ShowDoc SDoc
+
+(<:>) :: PDoc -> PDoc -> PDoc
+(<:>) = Append
+(<::>) :: PDoc -> PDoc -> PDoc
+(<::>) a b = Append (Append a (Text " ")) b
+($:$) :: PDoc -> PDoc -> PDoc
+($:$) = VAppend
+
+renderPDoc :: PDoc -> SDoc
+renderPDoc (Append a b) = renderPDoc a <> renderPDoc b
+renderPDoc (VAppend a b) = renderPDoc a $$ renderPDoc b
+renderPDoc (Text a)  = text a
+renderPDoc (ShowTy t) = ppr t
+renderPDoc (ShowDoc t) = t
+
+
+highName :: PDoc
+highName = Text "Secret"
+
+lowName :: PDoc
+lowName = Text "Public"
+
+boxName :: PDoc
+boxName = Text "box"
+
+flowMsg :: PDoc
+flowMsg = Text "Forbidden flow from" <::> highName <::> Text "(H)"
+          <::> Text "to" <::> lowName <::> Text "(L)" <:> Text "!"
+
+promMsg :: Type -> Type -> Type -> PDoc
+promMsg ty1 ty2 l = Text "Unlabeled" <::> ShowDoc (quotes (ppr ty1))
+                    <::> Text "used as a" <::> ShowDoc (quotes (boxedAs <+> ppr ty2) <> dot)
+                    $:$ Text "Perhaps you intended to use"
+                    <::> ShowDoc (quotes $ renderPDoc boxName) <:> Text "?"
+  where boxedAs = case splitTyConApp_maybe l of
+                    Just (tyCon, _) -> case occNameString (getOccName tyCon) of
+                                          "L" -> renderPDoc lowName
+                                          "H" -> renderPDoc highName
+                                          t -> text "Labeled" <+> text t
+                    _ -> text "Labeled" <+> ppr l
+
 
 logPromotion :: DynFlags -> Ct -> TcPluginM Log
-logPromotion dflags ct = do Just ts <- getPromTys dflags ct
+logPromotion dflags ct = do Just ts <- getPromTys ct
                             return $ Promotion loc ts
     where loc = RealSrcSpan $ ctLocSpan $ ctLoc ct
 
@@ -105,7 +163,7 @@ flowPlugin :: [CommandLineOption] -> TcPlugin
 flowPlugin opts = TcPlugin initialize solve stop
   where
      defer = "defer" `elem` opts
-     debug = True --"debug" `elem` opts
+     debug = "debug" `elem` opts
      initialize = tcPluginIO $ newIORef []
      solve warns given derived wanted = do {
         ; dflags <- unsafeTcPluginTcM getDynFlags
@@ -135,9 +193,9 @@ flowPlugin opts = TcPlugin initialize solve stop
                  ; mapM_ (pprDebug "To Check:" . ppr) promsToCheck
                  ; return $ TcPluginOk faked promsToCheck}
                else do {
-                 ; flowMsgTy <- getMsgType flowMsg
-                 ; let promMsgTy ct = do { Just ((ty1, ty2), l) <- getPromTys dflags ct
-                                         ; getMsgType $ promMsg ty1 ty2 l}
+                 ; flowMsgTy <- getMsgType dflags flowMsg
+                 ; let promMsgTy ct = do { Just ((ty1, ty2), l) <- getPromTys ct
+                                         ; getMsgType dflags $ promMsg ty1 ty2 l}
                  -- If we're changing the message, we pretend we solved the old one and return a new one with an
                  -- improved error message.
                  ; let changedFlow = map (changeIrredTy flowMsgTy) hToL
@@ -163,13 +221,11 @@ checkProm (evt, ct@(CIrredCan w@(CtWanted predty _ _ _) True)) =
       return $ Just (CNonCanonical {cc_ev=w {ctev_pred = mkTyConApp (equalityTyCon Representational) args}})
 checkProm _ = return Nothing
 
-getPromTys :: DynFlags -> Ct -> TcPluginM (Maybe ((String, String), String))
-getPromTys dflags ct = do  uwr <- unwrapPromotion (ctPred ct)
-                           return $ do (p,l) <- uwr
-                                       (_, [_,_,ty1,ty2]) <- splitTyConApp_maybe p
-                                       return ((showSDoc dflags $ ppr ty1,
-                                                showSDoc dflags $ ppr ty2),
-                                                showSDoc dflags $ ppr l)
+getPromTys :: Ct -> TcPluginM (Maybe ((Type, Type), Type))
+getPromTys  ct = do  uwr <- unwrapPromotion (ctPred ct)
+                     return $ do (p,l) <- uwr
+                                 (_, [_,_,ty1,ty2]) <- splitTyConApp_maybe p
+                                 return ((ty1, ty2), l)
 
 unwrapPromotion :: Type -> TcPluginM (Maybe (Type, Type))
 unwrapPromotion t =
@@ -220,6 +276,7 @@ isLabelTy :: Type -> TcPluginM Bool
 isLabelTy t = isL "L" `orM` isL "H"
   where isL l = case splitTyConApp_maybe t of
                   Just (tyCon, _) -> isSameName "MAC.Lattice" (mkDataOcc l) tyCon
+                  Nothing | isTyVarTy t -> isLabelKind  $ varType (getTyVar "isTyVarTy lied!" t)
                   _ -> return False
 
 isLessTy :: Type -> TcPluginM Bool

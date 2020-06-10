@@ -36,6 +36,9 @@ test = do
 promotedList :: Public [[Integer]]
 promotedList = [[0 :: Integer]]
 
+unknown :: Labeled l Bool
+unknown = True
+
 main :: Prelude.IO ()
 main = do runMAC test Prelude.>>= Prelude.print
           Prelude.print ("This should be private!" :: Secret String)
