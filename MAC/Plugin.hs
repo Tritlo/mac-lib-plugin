@@ -1,13 +1,13 @@
-{-# LANGUAGE RecordWildCards #-}
 -- Copyright (c) 2020 Matthias Pall Gissurarson
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
-module MAC.Plugin where
+{-# LANGUAGE CPP #-}
+module MAC.Plugin  (plugin) where
 
 import GhcPlugins hiding (TcPlugin)
 import TcRnTypes
 import TcPluginM
 import Control.Monad (when, filterM)
-import Constraint
 import Data.Maybe (catMaybes)
 import Data.IORef
 import Data.List (nub, sort)
@@ -16,14 +16,32 @@ import PrelNames
 import TcEvidence (EvTerm, evCoercion)
 import ErrUtils
 
-import Predicate (EqRel(NomEq))
-import TysPrim (equalityTyCon)
 import Finder (findPluginModule)
 
 import Prelude hiding ((<>))
 import FamInstEnv (FamInstMatch(..), FamInst(..), lookupFamInstEnv, FamInstEnvs)
 
+
+#if __GLASGOW_HASKELL__ < 810
+
+import HsImpExp
+import HsSyn
+
+-- Backported from 8.10
+isEqPrimPred = isCoVarType
+instance Outputable SDoc where
+  ppr x = x
+
+#else
+
 import GHC.Hs 
+import Constraint
+import Predicate
+
+#endif
+
+
+
 
 -- We have to add an import of GHC.TypeLits() to the module, otherwise we
 -- can get funny messages about interface files being missing
@@ -43,18 +61,17 @@ addDeferImports opts pm@HsParsedModule{hpm_module=L l m@HsModule{hsmodImports = 
    else pm{hpm_module = L l m{hsmodImports = resImp:idImp:imps}}
   where defer = "defer" `elem` opts
         imp :: String -> OccName -> GenLocated SrcSpan (ImportDecl GhcPs)
-        imp mod con = loc (simpleImportDecl (mkModuleName mod)) {
-          ideclHiding = Just (False, loc [loc $ IEThingAbs noExtField (occToLie con)]),
-          ideclAs = Just (loc (mkModuleName ("MAC.Plugin." ++ mod))), -- Make sure we don't clash
+        imp mod con = noLoc (simpleImportDecl (mkModuleName mod)) {
+          ideclHiding = Just (False, noLoc [noLoc $ IEThingAbs NoExt (occToLie con)]),
+          ideclAs = Just (noLoc (mkModuleName ("MAC.Plugin." ++ mod))), -- Make sure we don't clash
           ideclImplicit = True -- If we import it implicitly, we don't get unused-import warnings.
           }
-        loc = L l
         -- We import only the constructors
         resImp = imp "MAC.Core" (mkDataOcc "MkRes")
         idImp = imp "MAC.Labeled" (mkDataOcc "MkId")
         defImp = imp "MAC.KindDefaults" (mkTcOcc "Default")
         occToLie :: OccName -> LIEWrappedName RdrName
-        occToLie = loc . IEName . loc . Unqual
+        occToLie = noLoc . IEName . noLoc . Unqual
 
 plugin :: Plugin
 plugin = defaultPlugin { tcPlugin = Just . flowPlugin
@@ -191,9 +208,11 @@ flowPlugin opts = TcPlugin initialize solve stop
      debug = "debug" `elem` opts
      nodef = "no-default" `elem` opts
      initialize = tcPluginIO $ newIORef []
+     solve :: IORef [Log] -> [Ct] -> [Ct] -> [Ct] -> TcPluginM TcPluginResult
      solve warns given derived wanted = do {
         ; dflags <- unsafeTcPluginTcM getDynFlags
-        ; let pprDebug str a =
+        ; let pprDebug :: Outputable a => String -> a -> TcPluginM ()
+              pprDebug str a =
                 when debug $
                   tcPluginIO $ putStrLn (str ++ " " ++ showSDoc dflags (ppr a))
         ; pprDebug "Solving" empty
@@ -259,10 +278,10 @@ fakeProm ct = lie >>= fakeEv
 
 checkProm :: (EvTerm, Ct) -> TcPluginM (Maybe Ct)
 checkProm (evt, ct@(CIrredCan w@(CtWanted predty _ _ _) True)) =
-   do (_, args) <- return $ splitTyConApp predty
+   do (_, [k1,k2,ty1,ty2]) <- return $ splitTyConApp predty
       return $ Just (CNonCanonical {
                       cc_ev=w {
-                        ctev_pred = mkTyConApp (equalityTyCon Representational) args}})
+                        ctev_pred = mkHeteroReprPrimEqPred k1 k2 ty1 ty2 }})
 checkProm _ = return Nothing
 
 getPromTys :: Ct -> TcPluginM (Maybe ((Type, Type), Type))
@@ -288,8 +307,8 @@ unwrapPromotion t =
                      Just (_, [wrappedTy]) ->
                         -- Using ~R# (eqPrimRepresentational) makes us solve
                         -- Coercible, which is exactly what we want!
-                        return $ Just (mkTyConApp (equalityTyCon Representational)
-                                                  [k1, k2, ty1, wrappedTy], l)
+                        return $ Just (mkHeteroReprPrimEqPred
+                                         k1 k2 ty1 wrappedTy, l)
                      _ -> return Nothing
               _ -> return Nothing
        _ -> return Nothing
@@ -397,8 +416,7 @@ defaultingCt defaultTyCon (var, kind, def, loc) =
       return $ CTyEqCan {cc_ev = ev, cc_tyvar = var,
                          cc_rhs = eqTo, cc_eq_rel=eqRel }
  where eqTo = mkTyConApp defaultTyCon [kind]
-       predTy = mkTyConApp (equalityTyCon Nominal)
-                           [kind, kind, mkTyVarTy var, eqTo]
+       predTy = mkHeteroPrimEqPred kind kind (mkTyVarTy var) eqTo
        eqRel = NomEq
        getEv = do ref <- tcPluginIO $ newIORef Nothing
                   let hole = CoercionHole {ch_co_var = var, ch_ref=ref}
@@ -411,8 +429,7 @@ defaultingCt defaultTyCon (var, kind, def, loc) =
 getDefaultTyCon :: TcPluginM TyCon
 getDefaultTyCon =
    do env <- getTopEnv
-      modLookup <- tcPluginIO $
-                     findPluginModule env (mkModuleName mod)
+      modLookup <- tcPluginIO $ findPluginModule env (mkModuleName mod)
       case modLookup of
          Found _ mod  ->
             do name <- lookupOrig mod (mkTcOcc "Default")
@@ -421,7 +438,7 @@ getDefaultTyCon =
             pprPanic ("NoPackage when looking for" ++ mod++"!") $ ppr uid
          FoundMultiple m ->
             pprPanic ("Multiple modules found when looking for" ++ mod ++"!") (ppr m)
-         NotFound {..} -> pprPanic (mod ++ "not found!") empty
+         NotFound {} -> pprPanic (mod ++ " not found!") empty
   where mod = "MAC.KindDefaults"
 
 getTyVarDefaults :: FamInstEnvs -> TyCon -> Ct -> [(TyCoVar, Kind, Type, CtLoc)]
