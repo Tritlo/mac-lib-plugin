@@ -1,5 +1,6 @@
- {-# OPTIONS_GHC  -fplugin=SACRED.Plugin
-                  -fplugin-opt=SACRED.Plugin:debug
+ {-# OPTIONS_GHC  -fplugin=GRIT.Plugin
+                  -fplugin-opt=GRIT.Plugin:debug
+                  -fplugin-opt=GRIT.Plugin:defer
                   -dcore-lint
                  #-}
 {-# LANGUAGE RankNTypes #-}
@@ -20,7 +21,7 @@ module Main where
 import MAC.Labeled
 import MAC.Prelude
 import qualified Prelude
-import SACRED.Configure
+import GRIT.Configure
 import GHC.TypeLits(TypeError, ErrorMessage(..))
 import MAC.Core (Res(..))
 

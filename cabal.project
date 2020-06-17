@@ -3,5 +3,5 @@ packages: ./
           ./bad-examples
           ./no-plugin-examples
           ./basic-examples-new-plugin
-          ../sacred-plugin
-          ./sacred-examples
+          ../grit-plugin
+          ./grit-examples
