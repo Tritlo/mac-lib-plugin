@@ -35,7 +35,7 @@ type family LabelPpr (k :: Label) where
     LabelPpr l = Text "Labeled " :<>: ShowType l
 
 type instance Ignore (Less n m) =
-    sTypeError (Text "Forbidden flow from Secret (H) to Public (L)!")
+    TypeError (Text "Forbidden flow from Secret (H) to Public (L)!")
 
 type instance Promote a (Labeled l b) =
      TypeError (Text "Unlabeled ‘"
@@ -64,7 +64,7 @@ test = do
 promotedList :: Public [[Integer]]
 promotedList = [[0 :: Integer]]
 
-something :: Labeled a Bool
+something :: Labeled l Bool
 something = True
 
 main :: Prelude.IO ()

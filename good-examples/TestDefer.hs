@@ -20,6 +20,7 @@ import MAC.Labeled
 import MAC.Prelude
 import qualified Prelude
 
+
 post :: Public String -> Secret String -> Public String -> Public String
 post usr pwd msg = usr <> (" says: " :: Public String) <> sanitize pwd msg
 
