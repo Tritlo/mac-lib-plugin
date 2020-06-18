@@ -27,7 +27,7 @@ import MAC.Core (Res(..))
 
 type instance Default Label = L
 
-type instance Relate Label (n :: Label) (m :: Label) =
+type instance Discharge (n :: Label) (m :: Label) =
     TypeError (Text "Forbidden flow from Secret (H) to Public (L)!")
 
 type family LabelPpr (k :: Label) where
